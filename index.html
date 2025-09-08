@@ -33,6 +33,19 @@
 </style>
 </head>
 <body>
+<!-- Ambient audio for atmosphere -->
+<audio id="ambientAudio" loop>
+  <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DwylgcBSuLx+3WlDsKE3m+8+OVRgwLVK/j" type="audio/wav">
+</audio>
+
+<!-- Sound effects -->
+<audio id="takeSound" preload="auto">
+  <source src="data:audio/wav;base64,UklGRsQDAABXQVZFZm10IBAAAAABAAEAgD4AAIA+AAABAAgAZGF0YQAAAABVrF1Oq1WvL6LH8bWl" type="audio/wav">
+</audio>
+
+<audio id="lightSound" preload="auto">
+  <source src="data:audio/wav;base64,UklGRsQDAABXQVZFZm10IBAAAAABAAEAgD4AAIA+AAABAAgAZGF0YQAAAABVkXRel3XLM6rK9Lup" type="audio/wav">
+</audio>
 <div class="wrap">
   <h1>ABYSS: interactive fiction</h1>
   <div class="grid">
@@ -132,10 +145,17 @@ const WORLD = {
       scripts:{
         examine:(g)=>"The brass would carry a warm glow.",
         light:(g)=>{
-          if(!g.has("matches")) return "You need something to light it with.";
-          if(g.flags.light) return "The candle already burns with a steady glow.";
-          g.flags.light=true; g.unlockVerb("LIGHT"); g.note("Warm light spills outward.");
-          return "You touch flame to wick; the room leans into relief.";
+          if(!g.has("matches")) return "🔥 You need something to light it with.";
+          if(g.flags.light) return "🕯️ The candle already burns with a steady glow.";
+          g.flags.light=true; g.unlockVerb("LIGHT"); g.note("✨ Warm light spills outward.");
+          
+          // Play lighting sound effect
+          try {
+            const audio = document.getElementById('lightSound');
+            if(audio) { audio.currentTime = 0; audio.volume = 0.3; audio.play().catch(()=>{}); }
+          } catch(e) {}
+          
+          return "🕯️ You touch flame to wick; the room leans into relief.";
         }
       }
     },
@@ -153,7 +173,8 @@ const WORLD = {
       desc:"Smoothed by time, facing the sun and river.",
       take:false,
       scripts:{
-        sit:(g)=>{ g.advance(30); return "You sit. The world settles; the river keeps time."; }
+        sit:(g)=>{ g.advance(30); return "🪑 You sit. The world settles; the river keeps time."; },
+        examine:(g)=>"🌳 A simple wooden bench, weathered smooth by countless seasons. It faces east toward the flowing water."
       }
     }
   },
@@ -187,7 +208,9 @@ const Game = {
     {name:"DROP", unlock:true, fn:(g,args)=>g.drop(args)},
     {name:"LIGHT", unlock:true, fn:(g,args)=>g.onItem(args, "light")},
     {name:"SIT", unlock:true, fn:(g,args)=>g.onItem(args, "sit")},
-    {name:"ALIGN", unlock:true, fn:(g,args)=>g.onItem(args, "align")}
+    {name:"ALIGN", unlock:true, fn:(g,args)=>g.onItem(args, "align")},
+    {name:"SAVE", unlock:true, fn:(g)=>g.saveGame()},
+    {name:"LOAD", unlock:true, fn:(g)=>g.loadGame()}
   ],
   init(){
     // Clone items but preserve scripts (functions)
@@ -199,14 +222,43 @@ const Game = {
         scripts: item.scripts // Keep original scripts with functions
       };
     }
+    this.commandHistory = [];
+    this.historyIndex = -1;
     this.out = document.getElementById('term');
     this.cmd = document.getElementById('cmd');
     this.cmd.focus();
     document.getElementById('doBtn').onclick=()=>this.exec(this.cmd.value);
-    this.cmd.addEventListener('keydown',e=>{ if(e.key==='Enter'){ this.exec(this.cmd.value); }});
-    this.note("Awakening. A sunlit cabin. Carved wood. Elder draperies.");
+    this.cmd.addEventListener('keydown',e=>{ 
+      if(e.key==='Enter'){ this.exec(this.cmd.value); }
+      else if(e.key==='ArrowUp') { this.historyUp(e); }
+      else if(e.key==='ArrowDown') { this.historyDown(e); }
+    });
+    this.note("🌅 Awakening. A sunlit cabin. Carved wood. Elder draperies.");
     this.look();
     this.renderUI();
+    
+    // Start ambient audio
+    try {
+      const ambient = document.getElementById('ambientAudio');
+      if(ambient) {
+        ambient.volume = 0.1;
+        ambient.play().catch(()=>{}); // Ignore autoplay restrictions
+      }
+    } catch(e) {}
+  },
+  historyUp(e){ 
+    e.preventDefault(); 
+    if(this.commandHistory.length > 0) { 
+      this.historyIndex = Math.min(this.historyIndex + 1, this.commandHistory.length - 1); 
+      this.cmd.value = this.commandHistory[this.commandHistory.length - 1 - this.historyIndex]; 
+    } 
+  },
+  historyDown(e){ 
+    e.preventDefault(); 
+    if(this.historyIndex >= 0) { 
+      this.historyIndex--; 
+      this.cmd.value = this.historyIndex >= 0 ? this.commandHistory[this.commandHistory.length - 1 - this.historyIndex] : ''; 
+    } 
   },
   advance(min=5){ this.time+=min; this.renderUI(); },
   phase(){ const m=(this.time%(24*60)+24*60)%(24*60); if(m<11*60) return 'morning'; if(m<17*60) return 'day'; return 'evening'; },
@@ -237,24 +289,33 @@ const Game = {
     if(['n','s','e','w'].includes(dir)) dir={n:'north',s:'south',e:'east',w:'west'}[dir];
     const r=this.roomObj();
     const next = r.exits[dir];
-    if(!next){ this.say("You can't go that way."); this.advance(1); return; }
-    this.room = next; this.say(`You go ${dir}.`); this.look(); this.renderUI();
+    if(!next){ this.say(`🚫 You can't go ${dir} from here.`); this.advance(1); return; }
+    this.room = next; this.say(`🚶 You go ${dir}.`); this.look(); this.renderUI();
   },
   onItem(args, action){
     const noun = this.nounMatches(args[0]);
-    if(!noun){ this.say("You don't see that here."); this.advance(1); return; }
+    if(!noun){ this.say(`🔍 You don't see "${args[0]}" here.`); this.advance(1); return; }
     const it = this.items[noun];
     const sc = it.scripts?.[action];
     if(sc){ const res = sc(this); if(res) this.say(res); this.advance(3); this.renderUI(); return; }
-    this.say("Nothing happens."); this.advance(1);
+    this.say(`🤷 Nothing interesting happens with the ${it.name}.`); this.advance(1);
   },
   take(args){
-    const id=this.nounMatches(args[0]); if(!id){ this.say("Take what?"); return; }
-    const it=this.items[id]; if(!WORLD.items[id].take){ this.say("It won't come with you."); return; }
-    if(this.inv.includes(id)){ this.say("You already have it."); return; }
+    const id=this.nounMatches(args[0]); if(!id){ this.say("🤔 Take what?"); return; }
+    const it=this.items[id]; if(!WORLD.items[id].take){ this.say("🚫 It won't come with you."); return; }
+    if(this.inv.includes(id)){ this.say("✅ You already have it."); return; }
     // remove from room
     const items=this.roomObj().items; const ix=items.indexOf(id); if(ix>=0) items.splice(ix,1);
-    this.inv.push(id); this.unlockVerb("TAKE"); this.unlockVerb("DROP"); this.say(`Taken: ${it.name}.`); this.advance(1); this.renderUI();
+    this.inv.push(id); this.unlockVerb("TAKE"); this.unlockVerb("DROP"); 
+    this.say(`✋ Taken: ${it.name}.`); 
+    
+    // Play take sound effect
+    try {
+      const audio = document.getElementById('takeSound');
+      if(audio) { audio.currentTime = 0; audio.volume = 0.2; audio.play().catch(()=>{}); }
+    } catch(e) {}
+    
+    this.advance(1); this.renderUI();
   },
   drop(args){
     const id=this.nounMatches(args[0]); if(!id || !this.inv.includes(id)){ this.say("You aren't holding that."); return; }
@@ -262,10 +323,78 @@ const Game = {
   },
   tryWin(){
     const needs = WORLD.victory.clues; const ok = needs.every(c=>this.clues.has(c));
-    if(ok){ this.note(WORLD.victory.message); }
+    if(ok){ 
+      this.note("🎉 " + WORLD.victory.message + " 🎉"); 
+      this.note("Congratulations! You have solved the mystery of the Abyss!");
+      // Play a victory sound effect if available
+      try { 
+        const audio = new Audio('data:audio/wav;base64,UklGRvIGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVgFAAA=');
+        audio.volume = 0.3;
+        audio.play();
+      } catch(e) {}
+    }
   },
-  help(){ this.say("Try: LOOK · MOVE EAST/WEST · EXAMINE BOX · TAKE MATCHES · LIGHT CANDLE · ALIGN BOX. Type or tap verbs/nouns."); },
-  printInv(){ if(this.inv.length===0){ this.say("You carry nothing."); } else { this.say("You carry: "+this.inv.map(id=>this.items[id].name).join(', ')); } },
+  help(){ 
+    this.say("🎮 ABYSS - Interactive Fiction Help 🎮"); 
+    this.say("Available commands:"); 
+    this.say("• LOOK - Examine your surroundings"); 
+    this.say("• MOVE <direction> - Go north/south/east/west"); 
+    this.say("• EXAMINE <object> - Look at something closely"); 
+    this.say("• TAKE <object> - Pick up an item"); 
+    this.say("• LIGHT <object> - Use matches to light something"); 
+    this.say("• ALIGN <object> - Arrange or adjust something"); 
+    this.say("• INVENTORY - Check what you're carrying"); 
+    this.say("• SIT <object> - Rest on something"); 
+    this.say("• SAVE - Save your progress"); 
+    this.say("• LOAD - Load your saved game"); 
+    this.say(""); 
+    this.say("💡 Tips:"); 
+    this.say("• Click on verb/noun buttons for quick input"); 
+    this.say("• Use ↑↓ arrow keys to recall previous commands"); 
+    this.say("• Explore all locations to find clues"); 
+    this.say("• Pay attention to time - some things change!"); 
+    this.say("• The puzzle box holds the key to victory..."); 
+  },
+  printInv(){ if(this.inv.length===0){ this.say("🎒 You carry nothing."); } else { this.say("🎒 You carry: "+this.inv.map(id=>this.items[id].name).join(', ')); } },
+  
+  saveGame(){
+    try {
+      const saveData = {
+        time: this.time,
+        room: this.room,
+        inv: this.inv,
+        clues: Array.from(this.clues),
+        flags: this.flags,
+        discoveredVerbs: Array.from(this.discoveredVerbs)
+      };
+      localStorage.setItem('abyss-save', JSON.stringify(saveData));
+      this.note("💾 Game saved successfully!");
+    } catch(e) {
+      this.say("❌ Failed to save game: " + e.message);
+    }
+  },
+  
+  loadGame(){
+    try {
+      const saveData = localStorage.getItem('abyss-save');
+      if(!saveData) {
+        this.say("❌ No saved game found.");
+        return;
+      }
+      const data = JSON.parse(saveData);
+      this.time = data.time;
+      this.room = data.room;
+      this.inv = data.inv;
+      this.clues = new Set(data.clues);
+      this.flags = data.flags;
+      this.discoveredVerbs = new Set(data.discoveredVerbs);
+      this.note("📁 Game loaded successfully!");
+      this.look();
+      this.renderUI();
+    } catch(e) {
+      this.say("❌ Failed to load game: " + e.message);
+    }
+  },
   // ------------ UI / I/O ------------
   say(msg){ this.out.innerHTML += `\n${msg}`; this.out.scrollTop=this.out.scrollHeight; },
   note(msg){ this.out.innerHTML += `\n<span class="tag ok">${msg}</span>`; this.out.scrollTop=this.out.scrollHeight; },
@@ -273,18 +402,35 @@ const Game = {
     const line = (raw||'').trim(); if(!line) return;
     this.say(`\n> ${line}`);
     this.cmd.value='';
+    
+    // Add to command history
+    if(this.commandHistory.length === 0 || this.commandHistory[this.commandHistory.length-1] !== line) {
+      this.commandHistory.push(line);
+      if(this.commandHistory.length > 20) this.commandHistory.shift(); // Keep last 20 commands
+    }
+    this.historyIndex = -1;
+    
     const tokens = line.split(/\s+/).map(t=>t.toLowerCase());
     // normalize synonyms
     let verb = tokens[0]; verb = this.synonyms[verb]||verb;
     // MOVE special with direction default
     const args = tokens.slice(1);
-    if(verb==='move' && args.length===0){ this.say("Move where? (north/south/east/west)"); return; }
+    if(verb==='move' && args.length===0){ this.say("🧭 Move where? Try: north, south, east, or west"); return; }
     // find verb handler
     const v = this.verbs.find(v=>v.name.toLowerCase()===verb);
-    if(!v){ this.say("You reach for a word the world doesn't know yet."); return; }
+    if(!v){ 
+      // More helpful error messages
+      const suggestions = this.verbs.filter(verb => verb.name.toLowerCase().startsWith(tokens[0].charAt(0)));
+      if(suggestions.length > 0) {
+        this.say(`❓ Unknown command "${tokens[0]}". Did you mean: ${suggestions.map(s=>s.name).join(', ')}?`);
+      } else {
+        this.say(`❓ Unknown command "${tokens[0]}". Type HELP for available commands.`);
+      }
+      return; 
+    }
     // unlock verb when used successfully once (for typed discovery style)
     this.discoveredVerbs.add(v.name);
-    try{ v.fn(this, args); }catch(e){ this.say("(The world shivers—an error escapes.)"); console.error(e); }
+    try{ v.fn(this, args); }catch(e){ this.say("💥 The world shivers—an error escapes."); console.error(e); }
     this.renderUI();
   },
   visibleNouns(){
@@ -343,7 +489,10 @@ const Game = {
 Game.init();
 
 // seed some starter guidance
-Game.say("\nType or tap: LOOK · MOVE EAST · EXAMINE BOX · TAKE MATCHES · LIGHT CANDLE · ALIGN BOX");
+Game.say("\n🌟 Welcome to ABYSS: Interactive Fiction! 🌟");
+Game.say("💡 Try commands like: LOOK · MOVE EAST · EXAMINE BOX · TAKE MATCHES · LIGHT CANDLE");
+Game.say("💡 Use arrow keys ↑↓ to recall previous commands, or click verb/noun buttons!");
+Game.say("💡 Type HELP anytime for detailed instructions. Good luck! ✨");
 </script>
 </body>
 </html>
