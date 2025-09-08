@@ -3,7 +3,7 @@
 // "the rustling of leaves..."
 
 const ABYSS_ADVENTURE = {
-  title: "ABYSS: interactive fiction",
+  title: "The Whispering Forest",
   subtitle: "A mystery in the forest",
   author: "ZHines2",
   description: "Awaken in a sunlit cabin and unravel the mystery of the puzzle box through nature's clues.",
@@ -145,7 +145,7 @@ const ABYSS_ADVENTURE = {
   // Welcome message for this adventure
   welcomeMessage: function() {
     return [
-      "🌟 Welcome to ABYSS: Interactive Fiction! 🌟",
+      "🌟 Welcome to The Whispering Forest! 🌟",
       "🌅 Awakening. A sunlit cabin. Carved wood. Elder draperies.",
       "💡 Try commands like: LOOK · MOVE EAST · EXAMINE BOX · TAKE MATCHES · LIGHT CANDLE",
       "💡 Use arrow keys ↑↓ to recall previous commands, or click verb/noun buttons!",

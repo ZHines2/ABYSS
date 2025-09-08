@@ -301,7 +301,8 @@ class InteractiveFictionEngine {
     this.say("• Use ↑↓ arrow keys to recall previous commands"); 
     this.say("• Explore all locations to find clues"); 
     this.say("• Pay attention to time - some things change!"); 
-    if (this.currentAdventure.title.includes('ABYSS')) {
+    // Check for puzzle box by item presence instead of title
+    if (this.currentAdventure.items && this.currentAdventure.items.puzzleBox) {
       this.say("• The puzzle box holds the key to victory..."); 
     }
   }

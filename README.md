@@ -27,7 +27,7 @@ This engine has been refactored from a single-adventure system into a modular fr
 
 ### Current Adventures
 
-#### ABYSS: interactive fiction
+#### The Whispering Forest
 - **Author**: ZHines2
 - **Based on**: Original poem "the rustling of leaves..."
 - **Description**: Awaken in a sunlit cabin and unravel the mystery of the puzzle box through nature's clues

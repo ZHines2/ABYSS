@@ -5,8 +5,8 @@ const ADVENTURE_REGISTRY = {
   // Registry of available adventures
   adventures: [
     {
-      id: 'abyss',
-      title: 'ABYSS: interactive fiction',
+      id: 'whispering-forest',
+      title: 'The Whispering Forest',
       author: 'ZHines2',
       description: 'A mystery in the forest based on a poem. Awaken in a sunlit cabin and unravel the mystery of the puzzle box through nature\'s clues.',
       file: 'adventures/abyss.js',
@@ -14,6 +14,11 @@ const ADVENTURE_REGISTRY = {
     }
     // Future adventures can be added here
   ],
+
+  // Legacy aliases for backward compatibility
+  aliases: {
+    'abyss': 'whispering-forest'
+  },
   
   // Current loaded adventure
   currentAdventure: null,
@@ -30,7 +35,10 @@ const ADVENTURE_REGISTRY = {
   
   // Load an adventure by ID
   async loadAdventure(adventureId) {
-    const adventure = this.adventures.find(adv => adv.id === adventureId);
+    // Check for legacy aliases
+    const resolvedId = this.aliases[adventureId] || adventureId;
+    
+    const adventure = this.adventures.find(adv => adv.id === resolvedId);
     if (!adventure) {
       throw new Error(`Adventure '${adventureId}' not found`);
     }
@@ -42,7 +50,7 @@ const ADVENTURE_REGISTRY = {
         this.currentAdventure = require(`../${adventure.file}`);
       } else {
         // Browser environment - script should already be loaded
-        if (adventure.id === 'abyss' && window.ABYSS_ADVENTURE) {
+        if ((adventure.id === 'whispering-forest' || adventureId === 'abyss') && window.ABYSS_ADVENTURE) {
           this.currentAdventure = window.ABYSS_ADVENTURE;
         } else {
           throw new Error(`Adventure script not loaded: ${adventure.file}`);
