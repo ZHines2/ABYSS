@@ -24,6 +24,7 @@ class InteractiveFictionEngine {
       {name:"EXAMINE", unlock:true, fn:(args)=>this.onItem(args, "examine")},
       {name:"TAKE", unlock:true, fn:(args)=>this.take(args)},
       {name:"DROP", unlock:true, fn:(args)=>this.drop(args)},
+      {name:"OPEN", unlock:true, fn:(args)=>this.onItem(args, "open")},
       {name:"LIGHT", unlock:true, fn:(args)=>this.onItem(args, "light")},
       {name:"SIT", unlock:true, fn:(args)=>this.onItem(args, "sit")},
       {name:"ALIGN", unlock:true, fn:(args)=>this.onItem(args, "align")},
@@ -460,26 +461,35 @@ class InteractiveFictionEngine {
   unlockNounBasics() { /* placeholder in case we later gate nouns */ }
   
   renderUI() {
-    // where
+    // Update inline status elements for minimal UI
+    const whereInlineEl = document.getElementById('where-inline');
+    if (whereInlineEl) {
+      whereInlineEl.innerHTML = this.where();
+    }
+    
+    const invInlineEl = document.getElementById('inv-inline');
+    if (invInlineEl) {
+      const inv = this.gameState.inv.map(id=>this.items[id].name).join(', ');
+      invInlineEl.innerHTML = inv || '—';
+    }
+    
+    // Still support original sidebar elements for backward compatibility
     const whereEl = document.getElementById('where');
     if (whereEl) {
       whereEl.innerHTML = `${this.where()}<br><span class="tag">Phase: ${this.phase()}</span>`;
     }
     
-    // inv
     const invEl = document.getElementById('inv');
     if (invEl) {
       const inv = this.gameState.inv.map(id=>`<span class="tag">${this.items[id].name}</span>`).join(' ');
       invEl.innerHTML = inv||'<span class="mut">—</span>';
     }
     
-    // clock
     const clockEl = document.getElementById('clock');
     if (clockEl) {
       clockEl.innerHTML = `<span class="tag">${this.clock()}</span>`;
     }
     
-    // clues
     const cluesEl = document.getElementById('clues');
     if (cluesEl) {
       cluesEl.innerHTML = Array.from(this.gameState.clues).map(c=>`<div class="tag ok">${c}</div>`).join('')||'—';

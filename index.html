@@ -4,16 +4,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>The Whispering Forest</title>
+<title>Minimal Adventure</title>
 <style>
   :root{--bg:#000;--panel:#0a0a0a;--ink:#b6ffb6;--mut:#79b879;--accent:#caffd1;--ok:#9bffb0;--warn:#ffe38a;--bad:#ff6a8b} 
   html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:12px/1.6 'Press Start 2P', monospace; letter-spacing:0.5px} 
   .wrap{max-width:980px;margin:0 auto;padding:12px}
   h1{font-size:16px;margin:6px 0 10px}
-  .grid{display:grid;grid-template-columns:1fr 320px;gap:12px}
-  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  .terminal-container{max-width:800px;margin:0 auto}
   .panel{background:var(--panel);border:2px solid #1b1b1b;border-radius:2px;box-shadow:0 0 0 2px #0f0f0f inset, 0 0 24px #000} 
-  #term{height:360px;overflow:auto;padding:14px;white-space:pre-wrap;background:#000;border-bottom:2px solid #1b1b1b;text-shadow:0 0 6px rgba(146,255,166,0.45)} 
+  #term{height:420px;overflow:auto;padding:16px;white-space:pre-wrap;background:#000;border-bottom:2px solid #1b1b1b;text-shadow:0 0 6px rgba(146,255,166,0.45)} 
   #inputRow{display:flex;gap:8px;padding:10px;border-top:2px solid #1b1b1b;background:#000} 
   input[type=text]{flex:1;background:#000;border:2px solid #1b1b1b;border-radius:2px;color:var(--ink);padding:10px 12px;caret-color:var(--ink)} 
   button{background:#000;border:2px solid #1b1b1b;color:var(--ink);border-radius:2px;padding:8px 10px;cursor:pointer} 
@@ -23,6 +22,8 @@
   .bar .label{font-size:12px;color:var(--mut);padding:2px 0;width:100%}
   .chip{background:#000;border:2px solid #1b1b1b;border-radius:2px;padding:6px 8px;font-size:12px} 
   .chip.dir{border-style:dashed} 
+  .mini-status{justify-content:space-between;align-items:center}
+  .status-item{font-size:10px;color:var(--mut)}
   #side{display:flex;flex-direction:column;gap:10px}
   .mini{padding:10px}
   .mini h3{margin:0 0 6px 0;font-size:10px;color:var(--mut)}
@@ -30,9 +31,64 @@
   .ok{border-color:#2b6f54;color:var(--ok)}
   .warn{border-color:#7a5a2a;color:var(--warn)}
   .bad{border-color:#6a2b3a;color:var(--bad)}
+  
+  /* Title Screen Styles */
+  .title-screen{
+    position:fixed;
+    top:0;left:0;right:0;bottom:0;
+    background:#000;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    z-index:1000;
+    transition:opacity 1s ease-out;
+  }
+  .title-screen.hidden{opacity:0;pointer-events:none}
+  
+  .abyss-title{
+    font-size:48px;
+    color:#fff;
+    text-shadow:0 0 20px rgba(255,255,255,0.8);
+    animation:phaseIn 3s ease-in-out, ominousFloat 4s ease-in-out infinite 3s;
+    opacity:0;
+    transform:translateY(0);
+  }
+  
+  .title-prompt{
+    font-size:12px;
+    color:#888;
+    margin-top:60px;
+    animation:fadeInPrompt 1s ease-in 5s both;
+    opacity:0;
+  }
+  
+  @keyframes phaseIn {
+    0% { opacity:0; transform:scale(0.8) translateY(20px); }
+    50% { opacity:0.7; transform:scale(1.1) translateY(-10px); }
+    100% { opacity:1; transform:scale(1) translateY(0); }
+  }
+  
+  @keyframes ominousFloat {
+    0%, 100% { transform:translateY(0) scale(1); text-shadow:0 0 20px rgba(255,255,255,0.8); }
+    25% { transform:translateY(-8px) scale(1.02); text-shadow:0 0 25px rgba(255,255,255,0.9); }
+    50% { transform:translateY(-5px) scale(1.01); text-shadow:0 0 30px rgba(255,255,255,1); }
+    75% { transform:translateY(-12px) scale(1.03); text-shadow:0 0 25px rgba(255,255,255,0.9); }
+  }
+  
+  @keyframes fadeInPrompt {
+    0% { opacity:0; transform:translateY(10px); }
+    100% { opacity:1; transform:translateY(0); }
+  }
 </style>
 </head>
 <body>
+<!-- Title Screen -->
+<div id="titleScreen" class="title-screen">
+  <div class="abyss-title">ABYSS</div>
+  <div class="title-prompt">Press any key to begin...</div>
+</div>
+
 <!-- Ambient audio for atmosphere -->
 <audio id="ambientAudio" loop>
   <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DwylgcBSuLx+3WlDsKE3m+8+OVRgwLVK/j" type="audio/wav">
@@ -47,10 +103,14 @@
   <source src="data:audio/wav;base64,UklGRsQDAABXQVZFZm10IBAAAAABAAEAgD4AAIA+AAABAAgAZGF0YQAAAABVkXRel3XLM6rK9Lup" type="audio/wav">
 </audio>
 <div class="wrap">
-  <h1>Interactive Fiction Engine</h1>
-  <div class="grid">
+  <h1>Minimal Adventure</h1>
+  <div class="terminal-container">
     <div class="panel">
       <div id="term"></div>
+      <div class="bar mini-status">
+        <span class="status-item">Location: <span id="where-inline">—</span></span>
+        <span class="status-item">Items: <span id="inv-inline">—</span></span>
+      </div>
       <div class="bar" id="verbBar"><span class="label">Verbs (discovered)</span></div>
       <div class="bar" id="nounBar"><span class="label">Nouns (you can currently reference)</span></div>
       <div id="inputRow">
@@ -58,38 +118,55 @@
         <button id="doBtn">Do</button>
       </div>
     </div>
-    <div id="side">
-      <div class="panel mini"><h3>Where</h3><div id="where"></div></div>
-      <div class="panel mini"><h3>Inventory</h3><div id="inv"></div></div>
-      <div class="panel mini"><h3>Clock</h3><div id="clock"></div></div>
-      <div class="panel mini"><h3>Clues</h3><div id="clues"></div></div>
-    </div>
   </div>
 </div>
 <!-- Adventure Registry and Engine Scripts -->
 <script src="js/adventure-registry.js"></script>
+<script src="adventures/minimal.js"></script>
 <script src="adventures/abyss.js"></script>
 <script src="js/if-engine.js"></script>
 
 <script>
 // Initialize the Interactive Fiction Engine
 let gameEngine;
+let titleScreenActive = true;
 
-// Auto-start the whispering-forest adventure (with backward compatibility for 'abyss')
-document.addEventListener('DOMContentLoaded', async () => {
-  gameEngine = new InteractiveFictionEngine();
+// Handle title screen transition
+function startGame() {
+  if (!titleScreenActive) return;
   
-  // Start ambient audio
-  try {
-    const ambient = document.getElementById('ambientAudio');
-    if(ambient) {
-      ambient.volume = 0.1;
-      ambient.play().catch(()=>{}); // Ignore autoplay restrictions
-    }
-  } catch(e) {}
+  titleScreenActive = false;
+  const titleScreen = document.getElementById('titleScreen');
   
-  // Load and start the whispering-forest adventure by default
-  await gameEngine.startAdventure('whispering-forest');
+  // Fade out title screen
+  titleScreen.classList.add('hidden');
+  
+  // Start the game after transition
+  setTimeout(async () => {
+    titleScreen.style.display = 'none';
+    
+    // Initialize and start the game
+    gameEngine = new InteractiveFictionEngine();
+    
+    // Start ambient audio
+    try {
+      const ambient = document.getElementById('ambientAudio');
+      if(ambient) {
+        ambient.volume = 0.1;
+        ambient.play().catch(()=>{}); // Ignore autoplay restrictions
+      }
+    } catch(e) {}
+    
+    // Load and start the minimal adventure by default
+    await gameEngine.startAdventure('minimal');
+  }, 1000);
+}
+
+// Auto-show title screen and wait for user input
+document.addEventListener('DOMContentLoaded', () => {
+  // Listen for any key press to start the game
+  document.addEventListener('keydown', startGame);
+  document.addEventListener('click', startGame);
 });
 
 // Global function for switching adventures (for future use)
