@@ -4,7 +4,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>ABYSS: interactive fiction</title>
+<title>Interactive Fiction Engine</title>
 <style>
   :root{--bg:#000;--panel:#0a0a0a;--ink:#b6ffb6;--mut:#79b879;--accent:#caffd1;--ok:#9bffb0;--warn:#ffe38a;--bad:#ff6a8b} 
   html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:12px/1.6 'Press Start 2P', monospace; letter-spacing:0.5px} 
@@ -47,7 +47,7 @@
   <source src="data:audio/wav;base64,UklGRsQDAABXQVZFZm10IBAAAAABAAEAgD4AAIA+AAABAAgAZGF0YQAAAABVkXRel3XLM6rK9Lup" type="audio/wav">
 </audio>
 <div class="wrap">
-  <h1>ABYSS: interactive fiction</h1>
+  <h1>Interactive Fiction Engine</h1>
   <div class="grid">
     <div class="panel">
       <div id="term"></div>
@@ -66,433 +66,43 @@
     </div>
   </div>
 </div>
-<script>
-// =======================
-// WORLD DATA (swap to author)
-// =======================
-const WORLD = {
-  rooms: {
-    cabin: {
-      name:"Cabin",
-      desc:{
-        morning:"A sunlit cabin of carved wood and elder draperies. On a low table rests a puzzle box.",
-        day:"Warm beams paint the draperies. The table waits with the puzzle box.",
-        evening:"Candlelight would turn grooves to relief, if only it were lit. The puzzle box sits patient."
-      },
-      exits:{ east:"threshold" },
-      items:["puzzleBox","candlestick","matches"],
-      nouns:["room","table","draperies"]
-    },
-    threshold: {
-      name:"Threshold",
-      desc:{
-        morning:"Daylight pours across the doorway, inviting the woods.",
-        day:"The door yawns bright toward the forest path.",
-        evening:"Late light grazes the step; air cools."
-      },
-      exits:{ west:"cabin", east:"forest" },
-      items:[],
-      nouns:["door","doorway"]
-    },
-    forest: {
-      name:"Forest Edge",
-      desc:{
-        morning:"Leaves stir; the path smells of green and bark. The river glints eastward.",
-        day:"Birdsong beads the air; shade dapples the ground.",
-        evening:"Shadows lengthen; wild calls braid with wind."
-      },
-      exits:{ west:"threshold", east:"river" },
-      items:[],
-      nouns:["trees","leaves","wind","path"]
-    },
-    river: {
-      name:"Riverbank",
-      desc:{
-        morning:"A bright ribbon mirrors the canopy—glittering, awake. A log bench faces the sun.",
-        day:"Waves lap a steady hush; light dances. A bench invites rest.",
-        evening:"Reflections soften; the current wears velvet. The bench waits."
-      },
-      exits:{ west:"forest" },
-      items:["bench"],
-      nouns:["water","river"]
-    }
-  },
-  items:{
-    puzzleBox:{
-      name:"puzzle box", nouns:["box","puzzle","puzzle box"],
-      desc:"A cube with labyrinthine engravings; pictographs hide between grooves.",
-      take:false,
-      state:{hint:false},
-      scripts:{
-        examine:(g)=>{
-          g.note("The grooves suggest an order—perhaps drawn from nature.");
-          g.unlockVerb("EXAMINE");
-          return "Under certain light, faint glyphs seem to shift.";
-        },
-        align:(g)=>{
-          if(!g.flags.light) return "In this dimness, the engravings refuse to resolve.";
-          g.items.puzzleBox.state.hint=true; g.unlockVerb("ALIGN");
-          g.clue("Hint: grooves favor leaf → river → wind.");
-          g.tryWin();
-          return "In candlelight, channels align—an order suggests itself.";
-        }
-      }
-    },
-    candlestick:{
-      name:"brass candlestick", nouns:["candle","candlestick","brass candlestick"],
-      desc:"A well-weighted candlestick. Its wick awaits a spark.",
-      take:false,
-      scripts:{
-        examine:(g)=>"The brass would carry a warm glow.",
-        light:(g)=>{
-          if(!g.has("matches")) return "🔥 You need something to light it with.";
-          if(g.flags.light) return "🕯️ The candle already burns with a steady glow.";
-          g.flags.light=true; g.unlockVerb("LIGHT"); g.note("✨ Warm light spills outward.");
-          
-          // Play lighting sound effect
-          try {
-            const audio = document.getElementById('lightSound');
-            if(audio) { audio.currentTime = 0; audio.volume = 0.3; audio.play().catch(()=>{}); }
-          } catch(e) {}
-          
-          return "🕯️ You touch flame to wick; the room leans into relief.";
-        }
-      }
-    },
-    matches:{
-      name:"box of matches", nouns:["matches","match"],
-      desc:"A small box of matches. Smells of resin.",
-      take:true,
-      scripts:{
-        take:(g)=>{ g.unlockVerb("LIGHT"); return "You pocket the matches."; },
-        light:(g)=>{ g.flags.light=true; return "A small flame blooms and gutters."; }
-      }
-    },
-    bench:{
-      name:"log bench", nouns:["bench","log bench"],
-      desc:"Smoothed by time, facing the sun and river.",
-      take:false,
-      scripts:{
-        sit:(g)=>{ g.advance(30); return "🪑 You sit. The world settles; the river keeps time."; },
-        examine:(g)=>"🌳 A simple wooden bench, weathered smooth by countless seasons. It faces east toward the flowing water."
-      }
-    }
-  },
-  victory:{ clues:["Glyph:Leaf","Glyph:River","Glyph:Wind","Hint: grooves favor leaf → river → wind."],
-            message:"The engravings slide; the box unfurls—inside, a hush becomes a door." }
-};
+<!-- Adventure Registry and Engine Scripts -->
+<script src="js/adventure-registry.js"></script>
+<script src="adventures/abyss.js"></script>
+<script src="js/if-engine.js"></script>
 
-// =======================
-// ENGINE CORE
-// =======================
-const Game = {
-  time: 6*60,
-  room: "cabin",
-  inv: [],
-  clues: new Set(),
-  flags:{ light:false },
-  discoveredVerbs:new Set(["LOOK","MOVE","HELP","INVENTORY"]),
-  synonyms:{
-    n:"north", s:"south", e:"east", w:"west",
-    go:"move", walk:"move", run:"move",
-    inspect:"examine", read:"examine",
-    grab:"take", pick:"take"
-  },
-  verbs:[
-    {name:"LOOK", core:true, fn:(g,args)=>g.look()},
-    {name:"MOVE", core:true, fn:(g,args)=>g.move(args[0])},
-    {name:"HELP", core:true, fn:(g)=>g.help()},
-    {name:"INVENTORY", core:true, fn:(g)=>g.printInv()},
-    {name:"EXAMINE", unlock:true, fn:(g,args)=>g.onItem(args, "examine")},
-    {name:"TAKE", unlock:true, fn:(g,args)=>g.take(args)},
-    {name:"DROP", unlock:true, fn:(g,args)=>g.drop(args)},
-    {name:"LIGHT", unlock:true, fn:(g,args)=>g.onItem(args, "light")},
-    {name:"SIT", unlock:true, fn:(g,args)=>g.onItem(args, "sit")},
-    {name:"ALIGN", unlock:true, fn:(g,args)=>g.onItem(args, "align")},
-    {name:"SAVE", unlock:true, fn:(g)=>g.saveGame()},
-    {name:"LOAD", unlock:true, fn:(g)=>g.loadGame()}
-  ],
-  init(){
-    // Clone items but preserve scripts (functions)
-    this.items = {};
-    for(const [id, item] of Object.entries(WORLD.items)) {
-      this.items[id] = {
-        ...item,
-        state: item.state ? {...item.state} : undefined,
-        scripts: item.scripts // Keep original scripts with functions
-      };
-    }
-    this.commandHistory = [];
-    this.historyIndex = -1;
-    this.out = document.getElementById('term');
-    this.cmd = document.getElementById('cmd');
-    this.cmd.focus();
-    document.getElementById('doBtn').onclick=()=>this.exec(this.cmd.value);
-    this.cmd.addEventListener('keydown',e=>{ 
-      if(e.key==='Enter'){ this.exec(this.cmd.value); }
-      else if(e.key==='ArrowUp') { this.historyUp(e); }
-      else if(e.key==='ArrowDown') { this.historyDown(e); }
-    });
-    this.note("🌅 Awakening. A sunlit cabin. Carved wood. Elder draperies.");
-    this.look();
-    this.renderUI();
-    
-    // Start ambient audio
-    try {
-      const ambient = document.getElementById('ambientAudio');
-      if(ambient) {
-        ambient.volume = 0.1;
-        ambient.play().catch(()=>{}); // Ignore autoplay restrictions
-      }
-    } catch(e) {}
-  },
-  historyUp(e){ 
-    e.preventDefault(); 
-    if(this.commandHistory.length > 0) { 
-      this.historyIndex = Math.min(this.historyIndex + 1, this.commandHistory.length - 1); 
-      this.cmd.value = this.commandHistory[this.commandHistory.length - 1 - this.historyIndex]; 
-    } 
-  },
-  historyDown(e){ 
-    e.preventDefault(); 
-    if(this.historyIndex >= 0) { 
-      this.historyIndex--; 
-      this.cmd.value = this.historyIndex >= 0 ? this.commandHistory[this.commandHistory.length - 1 - this.historyIndex] : ''; 
-    } 
-  },
-  advance(min=5){ this.time+=min; this.renderUI(); },
-  phase(){ const m=(this.time%(24*60)+24*60)%(24*60); if(m<11*60) return 'morning'; if(m<17*60) return 'day'; return 'evening'; },
-  clock(){ let m=(this.time%(24*60)+24*60)%(24*60); const h=Math.floor(m/60), mm=m%60; const hh=((h%12)||12).toString().padStart(2,'0'); return `${hh}:${mm.toString().padStart(2,'0')} ${h<12?'AM':'PM'}`; },
-  roomObj(){ return WORLD.rooms[this.room]; },
-  where(){ const r=this.roomObj(); return `${r.name}`; },
-  look(){
-    const r=this.roomObj(); const ph=this.phase();
-    const desc=r.desc[ph]||r.desc.day; this.say(desc);
-    // ambient clues by area/time
-    if(this.room==='forest'){ this.clue("Glyph:Leaf"); if(ph!=='morning') this.clue("Glyph:Wind"); }
-    if(this.room==='river'){ this.clue("Glyph:River"); }
-    this.advance(2);
-    this.unlockNounBasics();
-  },
-  unlockVerb(v){ this.discoveredVerbs.add(v.toUpperCase()); this.renderUI(); },
-  clue(text){ if(!this.clues.has(text)){ this.clues.add(text); this.note(`Clue noted: ${text}`); this.renderUI(); } },
-  has(id){ return this.inv.includes(id); },
-  nounMatches(token){ token=token?.toLowerCase(); if(!token) return null; // map token to item id if visible or in inv
-    // check room items first (prefer room context over inventory)
-    for(const id of this.roomObj().items){ const it=this.items[id]; if(it && it.nouns.some(n=>n===token)) return id; }
-    // then check inventory items
-    for(const id of this.inv){ const it=this.items[id]; if(it.nouns.some(n=>n===token)) return id; }
-    return null;
-  },
-  move(dir){
-    dir = (dir||'').toLowerCase();
-    if(['n','s','e','w'].includes(dir)) dir={n:'north',s:'south',e:'east',w:'west'}[dir];
-    const r=this.roomObj();
-    const next = r.exits[dir];
-    if(!next){ this.say(`🚫 You can't go ${dir} from here.`); this.advance(1); return; }
-    this.room = next; this.say(`🚶 You go ${dir}.`); this.look(); this.renderUI();
-  },
-  onItem(args, action){
-    const noun = this.nounMatches(args[0]);
-    if(!noun){ this.say(`🔍 You don't see "${args[0]}" here.`); this.advance(1); return; }
-    const it = this.items[noun];
-    const sc = it.scripts?.[action];
-    if(sc){ const res = sc(this); if(res) this.say(res); this.advance(3); this.renderUI(); return; }
-    this.say(`🤷 Nothing interesting happens with the ${it.name}.`); this.advance(1);
-  },
-  take(args){
-    const id=this.nounMatches(args[0]); if(!id){ this.say("🤔 Take what?"); return; }
-    const it=this.items[id]; if(!WORLD.items[id].take){ this.say("🚫 It won't come with you."); return; }
-    if(this.inv.includes(id)){ this.say("✅ You already have it."); return; }
-    // remove from room
-    const items=this.roomObj().items; const ix=items.indexOf(id); if(ix>=0) items.splice(ix,1);
-    this.inv.push(id); this.unlockVerb("TAKE"); this.unlockVerb("DROP"); 
-    this.say(`✋ Taken: ${it.name}.`); 
-    
-    // Play take sound effect
-    try {
-      const audio = document.getElementById('takeSound');
-      if(audio) { audio.currentTime = 0; audio.volume = 0.2; audio.play().catch(()=>{}); }
-    } catch(e) {}
-    
-    this.advance(1); this.renderUI();
-  },
-  drop(args){
-    const id=this.nounMatches(args[0]); if(!id || !this.inv.includes(id)){ this.say("You aren't holding that."); return; }
-    this.inv = this.inv.filter(x=>x!==id); this.roomObj().items.push(id); this.say(`Dropped: ${this.items[id].name}.`); this.advance(1); this.renderUI();
-  },
-  tryWin(){
-    const needs = WORLD.victory.clues; const ok = needs.every(c=>this.clues.has(c));
-    if(ok){ 
-      this.note("🎉 " + WORLD.victory.message + " 🎉"); 
-      this.note("Congratulations! You have solved the mystery of the Abyss!");
-      // Play a victory sound effect if available
-      try { 
-        const audio = new Audio('data:audio/wav;base64,UklGRvIGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVgFAAA=');
-        audio.volume = 0.3;
-        audio.play();
-      } catch(e) {}
-    }
-  },
-  help(){ 
-    this.say("🎮 ABYSS - Interactive Fiction Help 🎮"); 
-    this.say("Available commands:"); 
-    this.say("• LOOK - Examine your surroundings"); 
-    this.say("• MOVE <direction> - Go north/south/east/west"); 
-    this.say("• EXAMINE <object> - Look at something closely"); 
-    this.say("• TAKE <object> - Pick up an item"); 
-    this.say("• LIGHT <object> - Use matches to light something"); 
-    this.say("• ALIGN <object> - Arrange or adjust something"); 
-    this.say("• INVENTORY - Check what you're carrying"); 
-    this.say("• SIT <object> - Rest on something"); 
-    this.say("• SAVE - Save your progress"); 
-    this.say("• LOAD - Load your saved game"); 
-    this.say(""); 
-    this.say("💡 Tips:"); 
-    this.say("• Click on verb/noun buttons for quick input"); 
-    this.say("• Use ↑↓ arrow keys to recall previous commands"); 
-    this.say("• Explore all locations to find clues"); 
-    this.say("• Pay attention to time - some things change!"); 
-    this.say("• The puzzle box holds the key to victory..."); 
-  },
-  printInv(){ if(this.inv.length===0){ this.say("🎒 You carry nothing."); } else { this.say("🎒 You carry: "+this.inv.map(id=>this.items[id].name).join(', ')); } },
+<script>
+// Initialize the Interactive Fiction Engine
+let gameEngine;
+
+// Auto-start the ABYSS adventure (for backward compatibility)
+document.addEventListener('DOMContentLoaded', async () => {
+  gameEngine = new InteractiveFictionEngine();
   
-  saveGame(){
-    try {
-      const saveData = {
-        time: this.time,
-        room: this.room,
-        inv: this.inv,
-        clues: Array.from(this.clues),
-        flags: this.flags,
-        discoveredVerbs: Array.from(this.discoveredVerbs)
-      };
-      localStorage.setItem('abyss-save', JSON.stringify(saveData));
-      this.note("💾 Game saved successfully!");
-    } catch(e) {
-      this.say("❌ Failed to save game: " + e.message);
+  // Start ambient audio
+  try {
+    const ambient = document.getElementById('ambientAudio');
+    if(ambient) {
+      ambient.volume = 0.1;
+      ambient.play().catch(()=>{}); // Ignore autoplay restrictions
     }
-  },
+  } catch(e) {}
   
-  loadGame(){
-    try {
-      const saveData = localStorage.getItem('abyss-save');
-      if(!saveData) {
-        this.say("❌ No saved game found.");
-        return;
-      }
-      const data = JSON.parse(saveData);
-      this.time = data.time;
-      this.room = data.room;
-      this.inv = data.inv;
-      this.clues = new Set(data.clues);
-      this.flags = data.flags;
-      this.discoveredVerbs = new Set(data.discoveredVerbs);
-      this.note("📁 Game loaded successfully!");
-      this.look();
-      this.renderUI();
-    } catch(e) {
-      this.say("❌ Failed to load game: " + e.message);
-    }
-  },
-  // ------------ UI / I/O ------------
-  say(msg){ this.out.innerHTML += `\n${msg}`; this.out.scrollTop=this.out.scrollHeight; },
-  note(msg){ this.out.innerHTML += `\n<span class="tag ok">${msg}</span>`; this.out.scrollTop=this.out.scrollHeight; },
-  exec(raw){
-    const line = (raw||'').trim(); if(!line) return;
-    this.say(`\n> ${line}`);
-    this.cmd.value='';
-    
-    // Add to command history
-    if(this.commandHistory.length === 0 || this.commandHistory[this.commandHistory.length-1] !== line) {
-      this.commandHistory.push(line);
-      if(this.commandHistory.length > 20) this.commandHistory.shift(); // Keep last 20 commands
-    }
-    this.historyIndex = -1;
-    
-    const tokens = line.split(/\s+/).map(t=>t.toLowerCase());
-    // normalize synonyms
-    let verb = tokens[0]; verb = this.synonyms[verb]||verb;
-    // MOVE special with direction default
-    const args = tokens.slice(1);
-    if(verb==='move' && args.length===0){ this.say("🧭 Move where? Try: north, south, east, or west"); return; }
-    // find verb handler
-    const v = this.verbs.find(v=>v.name.toLowerCase()===verb);
-    if(!v){ 
-      // More helpful error messages
-      const suggestions = this.verbs.filter(verb => verb.name.toLowerCase().startsWith(tokens[0].charAt(0)));
-      if(suggestions.length > 0) {
-        this.say(`❓ Unknown command "${tokens[0]}". Did you mean: ${suggestions.map(s=>s.name).join(', ')}?`);
-      } else {
-        this.say(`❓ Unknown command "${tokens[0]}". Type HELP for available commands.`);
-      }
-      return; 
-    }
-    // unlock verb when used successfully once (for typed discovery style)
-    this.discoveredVerbs.add(v.name);
-    try{ v.fn(this, args); }catch(e){ this.say("💥 The world shivers—an error escapes."); console.error(e); }
-    this.renderUI();
-  },
-  visibleNouns(){
-    const r=this.roomObj();
-    const roomNouns = (r.nouns||[]);
-    const itemNouns = r.items.flatMap(id=>this.items[id]?.nouns||[]);
-    const invNouns  = this.inv.flatMap(id=>this.items[id]?.nouns||[]);
-    const dirNouns = Object.keys(r.exits); // directions available
-    return [...new Set([...roomNouns, ...itemNouns, ...invNouns, ...dirNouns])];
-  },
-  unlockNounBasics(){ /* placeholder in case we later gate nouns */ },
-  renderUI(){
-    // where
-    document.getElementById('where').innerHTML = `${this.where()}<br><span class="tag">Phase: ${this.phase()}</span>`;
-    // inv
-    const inv = this.inv.map(id=>`<span class="tag">${this.items[id].name}</span>`).join(' ');
-    document.getElementById('inv').innerHTML = inv||'<span class="mut">—</span>';
-    // clock
-    document.getElementById('clock').innerHTML = `<span class="tag">${this.clock()}</span>`;
-    // clues
-    document.getElementById('clues').innerHTML = Array.from(this.clues).map(c=>`<div class="tag ok">${c}</div>`).join('')||'—';
-    // verb bar
-    const verbBar = document.getElementById('verbBar');
-    verbBar.innerHTML = '<span class="label">Verbs (discovered)</span>'+
-      Array.from(this.discoveredVerbs).sort().map(v=>`<button class="chip" data-verb="${v}">${v}</button>`).join('');
-    // noun bar (context nouns)
-    const nouns = this.visibleNouns();
-    const nounBar = document.getElementById('nounBar');
-    nounBar.innerHTML = '<span class="label">Nouns (you can currently reference)</span>'+
-      nouns.map(n=>{
-        const cls = ['north','south','east','west'].includes(n)?'chip dir':'chip';
-        return `<button class="${cls}" data-noun="${n}">${n.toUpperCase()}</button>`; }).join('');
-    // wire chips
-    verbBar.querySelectorAll('button[data-verb]').forEach(b=>{
-      b.onclick=()=>{ this.cmd.value = (b.dataset.verb+" "+this.cmd.value).trim(); this.cmd.focus(); };
-    });
-    nounBar.querySelectorAll('button[data-noun]').forEach(b=>{
-      b.onclick=()=>{
-        const n = b.dataset.noun;
-        // if noun is a direction and MOVE is discovered, auto build MOVE command
-        if(['north','south','east','west'].includes(n)){
-          if(this.discoveredVerbs.has('MOVE')){ this.cmd.value = `MOVE ${n}`; this.exec(this.cmd.value); }
-          else { this.cmd.value = `MOVE ${n}`; }
-        } else {
-          // append to current input
-          const v = this.cmd.value.trim();
-          this.cmd.value = (v? (v+" ") : "") + n;
-          this.cmd.focus();
-        }
-      };
-    });
+  // Load and start the ABYSS adventure by default
+  await gameEngine.startAdventure('abyss');
+});
+
+// Global function for switching adventures (for future use)
+window.switchAdventure = async function(adventureId) {
+  if (gameEngine) {
+    await gameEngine.startAdventure(adventureId);
   }
 };
 
-// boot
-Game.init();
-
-// seed some starter guidance
-Game.say("\n🌟 Welcome to ABYSS: Interactive Fiction! 🌟");
-Game.say("💡 Try commands like: LOOK · MOVE EAST · EXAMINE BOX · TAKE MATCHES · LIGHT CANDLE");
-Game.say("💡 Use arrow keys ↑↓ to recall previous commands, or click verb/noun buttons!");
-Game.say("💡 Type HELP anytime for detailed instructions. Good luck! ✨");
+// Legacy support - expose engine methods globally for compatibility
+window.Game = {
+  get currentEngine() { return gameEngine; }
+};
 </script>
 </body>
 </html>
