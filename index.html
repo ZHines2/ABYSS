@@ -145,12 +145,13 @@ function startGame() {
     // Initialize and start the game
     gameEngine = new InteractiveFictionEngine();
     
-    // Start ambient audio
+    // Start ambient audio only if user has interacted
     try {
       const ambient = document.getElementById('ambientAudio');
       if(ambient) {
         ambient.volume = 0.1;
-        ambient.play().catch(()=>{}); // Ignore autoplay restrictions
+        // Don't auto-play to avoid browser beeps - let user start audio manually
+        ambient.load(); // Pre-load but don't play
       }
     } catch(e) {}
     
