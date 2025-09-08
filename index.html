@@ -10,10 +10,9 @@
   html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:12px/1.6 'Press Start 2P', monospace; letter-spacing:0.5px} 
   .wrap{max-width:980px;margin:0 auto;padding:12px}
   h1{font-size:16px;margin:6px 0 10px}
-  .grid{display:grid;grid-template-columns:1fr 320px;gap:12px}
-  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  .terminal-container{max-width:800px;margin:0 auto}
   .panel{background:var(--panel);border:2px solid #1b1b1b;border-radius:2px;box-shadow:0 0 0 2px #0f0f0f inset, 0 0 24px #000} 
-  #term{height:360px;overflow:auto;padding:14px;white-space:pre-wrap;background:#000;border-bottom:2px solid #1b1b1b;text-shadow:0 0 6px rgba(146,255,166,0.45)} 
+  #term{height:420px;overflow:auto;padding:16px;white-space:pre-wrap;background:#000;border-bottom:2px solid #1b1b1b;text-shadow:0 0 6px rgba(146,255,166,0.45)} 
   #inputRow{display:flex;gap:8px;padding:10px;border-top:2px solid #1b1b1b;background:#000} 
   input[type=text]{flex:1;background:#000;border:2px solid #1b1b1b;border-radius:2px;color:var(--ink);padding:10px 12px;caret-color:var(--ink)} 
   button{background:#000;border:2px solid #1b1b1b;color:var(--ink);border-radius:2px;padding:8px 10px;cursor:pointer} 
@@ -23,6 +22,8 @@
   .bar .label{font-size:12px;color:var(--mut);padding:2px 0;width:100%}
   .chip{background:#000;border:2px solid #1b1b1b;border-radius:2px;padding:6px 8px;font-size:12px} 
   .chip.dir{border-style:dashed} 
+  .mini-status{justify-content:space-between;align-items:center}
+  .status-item{font-size:10px;color:var(--mut)}
   #side{display:flex;flex-direction:column;gap:10px}
   .mini{padding:10px}
   .mini h3{margin:0 0 6px 0;font-size:10px;color:var(--mut)}
@@ -48,21 +49,19 @@
 </audio>
 <div class="wrap">
   <h1>Minimal Adventure</h1>
-  <div class="grid">
+  <div class="terminal-container">
     <div class="panel">
       <div id="term"></div>
+      <div class="bar mini-status">
+        <span class="status-item">Location: <span id="where-inline">—</span></span>
+        <span class="status-item">Items: <span id="inv-inline">—</span></span>
+      </div>
       <div class="bar" id="verbBar"><span class="label">Verbs (discovered)</span></div>
       <div class="bar" id="nounBar"><span class="label">Nouns (you can currently reference)</span></div>
       <div id="inputRow">
         <input id="cmd" type="text" placeholder="Type commands: LOOK / EXAMINE BOX / LIGHT CANDLE WITH MATCHES"/>
         <button id="doBtn">Do</button>
       </div>
-    </div>
-    <div id="side">
-      <div class="panel mini"><h3>Where</h3><div id="where"></div></div>
-      <div class="panel mini"><h3>Inventory</h3><div id="inv"></div></div>
-      <div class="panel mini"><h3>Clock</h3><div id="clock"></div></div>
-      <div class="panel mini"><h3>Clues</h3><div id="clues"></div></div>
     </div>
   </div>
 </div>
