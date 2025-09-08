@@ -56,7 +56,7 @@ class InteractiveFictionEngine {
       return true;
     } catch (error) {
       console.error('Failed to start adventure:', error);
-      this.say(`❌ Failed to load adventure: ${error.message}`);
+      this.say(`Failed to load adventure: ${error.message}`);
       return false;
     }
   }
@@ -182,7 +182,7 @@ class InteractiveFictionEngine {
     if (!r) return;
     
     const next = r.exits[dir];
-    if(!next){ this.say(`🚫 You can't go ${dir} from here.`); this.advance(1); return; }
+    if(!next){ this.say(`You can't go ${dir} from here.`); this.advance(1); return; }
     this.gameState.room = next; 
     this.say(`🚶 You go ${dir}.`); 
     this.look(); 
@@ -200,10 +200,10 @@ class InteractiveFictionEngine {
   
   take(args) {
     const id = this.nounMatches(args[0]); 
-    if(!id){ this.say("🤔 Take what?"); return; }
+    if(!id){ this.say("Take what?"); return; }
     const it = this.items[id]; 
-    if(!this.currentAdventure.items[id].take){ this.say("🚫 It won't come with you."); return; }
-    if(this.gameState.inv.includes(id)){ this.say("✅ You already have it."); return; }
+    if(!this.currentAdventure.items[id].take){ this.say("It won't come with you."); return; }
+    if(this.gameState.inv.includes(id)){ this.say("You already have it."); return; }
     
     // remove from room
     const items = this.roomObj().items; 
@@ -212,7 +212,7 @@ class InteractiveFictionEngine {
     this.gameState.inv.push(id); 
     this.unlockVerb("TAKE"); 
     this.unlockVerb("DROP"); 
-    this.say(`✋ Taken: ${it.name}.`); 
+    this.say(`Taken: ${it.name}.`); 
     
     // Play take sound effect
     try {
@@ -271,7 +271,7 @@ class InteractiveFictionEngine {
     const needs = this.currentAdventure.victory.clues; 
     const ok = needs.every(c => this.gameState.clues.has(c));
     if(ok){ 
-      this.note("🎉 " + this.currentAdventure.victory.message + " 🎉"); 
+      this.note(this.currentAdventure.victory.message); 
       this.note("Congratulations! You have solved the mystery!");
       
       // Play a victory sound effect if available
@@ -331,9 +331,9 @@ class InteractiveFictionEngine {
         }
       };
       localStorage.setItem('if-engine-save', JSON.stringify(saveData));
-      this.note("💾 Game saved successfully!");
+      this.note("Game saved successfully!");
     } catch(e) {
-      this.say("❌ Failed to save game: " + e.message);
+      this.say("Failed to save game: " + e.message);
     }
   }
   
@@ -341,14 +341,14 @@ class InteractiveFictionEngine {
     try {
       const saveData = localStorage.getItem('if-engine-save');
       if(!saveData) {
-        this.say("❌ No saved game found.");
+        this.say("No saved game found.");
         return;
       }
       const data = JSON.parse(saveData);
       
       // Check if we need to switch adventures
       if (data.adventureId && ADVENTURE_REGISTRY.getCurrentAdventure()?.title !== this.currentAdventure?.title) {
-        this.say("🔄 Loading different adventure...");
+        this.say("Loading different adventure...");
         this.startAdventure(data.adventureId).then(() => {
           this.loadGameState(data.gameState);
         });
@@ -357,7 +357,7 @@ class InteractiveFictionEngine {
       
       this.loadGameState(data.gameState);
     } catch(e) {
-      this.say("❌ Failed to load game: " + e.message);
+      this.say("Failed to load game: " + e.message);
     }
   }
   
@@ -368,7 +368,7 @@ class InteractiveFictionEngine {
     this.gameState.clues = new Set(gameState.clues);
     this.gameState.flags = gameState.flags;
     this.gameState.discoveredVerbs = new Set(gameState.discoveredVerbs);
-    this.note("📁 Game loaded successfully!");
+    this.note("Game loaded successfully!");
     this.look();
     this.renderUI();
   }
@@ -418,9 +418,9 @@ class InteractiveFictionEngine {
       // More helpful error messages
       const suggestions = this.coreVerbs.filter(verb => verb.name.toLowerCase().startsWith(tokens[0].charAt(0)));
       if(suggestions.length > 0) {
-        this.say(`❓ Unknown command "${tokens[0]}". Did you mean: ${suggestions.map(s=>s.name).join(', ')}?`);
+        this.say(`Unknown command "${tokens[0]}". Did you mean: ${suggestions.map(s=>s.name).join(', ')}?`);
       } else {
-        this.say(`❓ Unknown command "${tokens[0]}". Type HELP for available commands.`);
+        this.say(`Unknown command "${tokens[0]}". Type HELP for available commands.`);
       }
       return; 
     }

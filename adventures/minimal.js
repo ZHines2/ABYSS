@@ -105,8 +105,8 @@ const MINIMAL_ADVENTURE = {
         },
         open: (game) => {
           game.unlockVerb("OPEN");
-          game.note("📖 You have completed the adventure!");
-          return "🎉 You open the book and find... the end of this simple adventure! Congratulations!";
+          game.note("You have completed the adventure!");
+          return "You open the book and find... the end of this simple adventure! Congratulations!";
         }
       }
     }
@@ -121,10 +121,10 @@ const MINIMAL_ADVENTURE = {
   // Simple welcome message
   welcomeMessage: function() {
     return [
-      "🎮 Welcome to the Minimal Adventure! 🎮",
-      "🚪 You find yourself in a simple room. Try exploring!",
-      "💡 Commands: LOOK, MOVE EAST, EXAMINE DOOR, TAKE BOOK, OPEN BOOK",
-      "💡 Type HELP for more commands."
+      "Welcome to the Minimal Adventure!",
+      "You find yourself in a simple room. Try exploring!",
+      "Commands: LOOK, MOVE EAST, EXAMINE DOOR, TAKE BOOK, OPEN BOOK",
+      "Type HELP for more commands."
     ];
   }
 };

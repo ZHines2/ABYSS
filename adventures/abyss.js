@@ -90,9 +90,9 @@ const ABYSS_ADVENTURE = {
       scripts:{
         examine:(g)=>"The brass would carry a warm glow.",
         light:(g)=>{
-          if(!g.has("matches")) return "🔥 You need something to light it with.";
-          if(g.flags.light) return "🕯️ The candle already burns with a steady glow.";
-          g.flags.light=true; g.unlockVerb("LIGHT"); g.note("✨ Warm light spills outward.");
+          if(!g.has("matches")) return "You need something to light it with.";
+          if(g.flags.light) return "The candle already burns with a steady glow.";
+          g.flags.light=true; g.unlockVerb("LIGHT"); g.note("Warm light spills outward.");
           
           // Play lighting sound effect
           try {
@@ -100,7 +100,7 @@ const ABYSS_ADVENTURE = {
             if(audio) { audio.currentTime = 0; audio.volume = 0.3; audio.play().catch(()=>{}); }
           } catch(e) {}
           
-          return "🕯️ You touch flame to wick; the room leans into relief.";
+          return "You touch flame to wick; the room leans into relief.";
         }
       }
     },
@@ -118,8 +118,8 @@ const ABYSS_ADVENTURE = {
       desc:"Smoothed by time, facing the sun and river.",
       take:false,
       scripts:{
-        sit:(g)=>{ g.advance(30); return "🪑 You sit. The world settles; the river keeps time."; },
-        examine:(g)=>"🌳 A simple wooden bench, weathered smooth by countless seasons. It faces east toward the flowing water."
+        sit:(g)=>{ g.advance(30); return "You sit. The world settles; the river keeps time."; },
+        examine:(g)=>"A simple wooden bench, weathered smooth by countless seasons. It faces east toward the flowing water."
       }
     }
   },
@@ -145,11 +145,11 @@ const ABYSS_ADVENTURE = {
   // Welcome message for this adventure
   welcomeMessage: function() {
     return [
-      "🌟 Welcome to The Whispering Forest! 🌟",
-      "🌅 Awakening. A sunlit cabin. Carved wood. Elder draperies.",
-      "💡 Try commands like: LOOK · MOVE EAST · EXAMINE BOX · TAKE MATCHES · LIGHT CANDLE",
-      "💡 Use arrow keys ↑↓ to recall previous commands, or click verb/noun buttons!",
-      "💡 Type HELP anytime for detailed instructions. Good luck! ✨"
+      "Welcome to The Whispering Forest!",
+      "Awakening. A sunlit cabin. Carved wood. Elder draperies.",
+      "Try commands like: LOOK | MOVE EAST | EXAMINE BOX | TAKE MATCHES | LIGHT CANDLE",
+      "Use arrow keys up/down to recall previous commands.",
+      "Type HELP anytime for detailed instructions. Good luck!"
     ];
   }
 };
