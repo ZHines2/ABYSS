@@ -140,7 +140,7 @@ const WORLD = {
       }
     },
     matches:{
-      name:"box of matches", nouns:["matches","box","match"],
+      name:"box of matches", nouns:["matches","match"],
       desc:"A small box of matches. Smells of resin.",
       take:true,
       scripts:{
@@ -190,7 +190,15 @@ const Game = {
     {name:"ALIGN", unlock:true, fn:(g,args)=>g.onItem(args, "align")}
   ],
   init(){
-    this.items = JSON.parse(JSON.stringify(WORLD.items)); // deep-ish clone for state
+    // Clone items but preserve scripts (functions)
+    this.items = {};
+    for(const [id, item] of Object.entries(WORLD.items)) {
+      this.items[id] = {
+        ...item,
+        state: item.state ? {...item.state} : undefined,
+        scripts: item.scripts // Keep original scripts with functions
+      };
+    }
     this.out = document.getElementById('term');
     this.cmd = document.getElementById('cmd');
     this.cmd.focus();
@@ -218,10 +226,10 @@ const Game = {
   clue(text){ if(!this.clues.has(text)){ this.clues.add(text); this.note(`Clue noted: ${text}`); this.renderUI(); } },
   has(id){ return this.inv.includes(id); },
   nounMatches(token){ token=token?.toLowerCase(); if(!token) return null; // map token to item id if visible or in inv
-    // check inventory items
-    for(const id of this.inv){ const it=this.items[id]; if(it.nouns.some(n=>n===token)) return id; }
-    // check room items
+    // check room items first (prefer room context over inventory)
     for(const id of this.roomObj().items){ const it=this.items[id]; if(it && it.nouns.some(n=>n===token)) return id; }
+    // then check inventory items
+    for(const id of this.inv){ const it=this.items[id]; if(it.nouns.some(n=>n===token)) return id; }
     return null;
   },
   move(dir){
