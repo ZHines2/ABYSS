@@ -4,7 +4,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>The Whispering Forest</title>
+<title>Minimal Adventure</title>
 <style>
   :root{--bg:#000;--panel:#0a0a0a;--ink:#b6ffb6;--mut:#79b879;--accent:#caffd1;--ok:#9bffb0;--warn:#ffe38a;--bad:#ff6a8b} 
   html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:12px/1.6 'Press Start 2P', monospace; letter-spacing:0.5px} 
@@ -47,7 +47,7 @@
   <source src="data:audio/wav;base64,UklGRsQDAABXQVZFZm10IBAAAAABAAEAgD4AAIA+AAABAAgAZGF0YQAAAABVkXRel3XLM6rK9Lup" type="audio/wav">
 </audio>
 <div class="wrap">
-  <h1>Interactive Fiction Engine</h1>
+  <h1>Minimal Adventure</h1>
   <div class="grid">
     <div class="panel">
       <div id="term"></div>
@@ -68,6 +68,7 @@
 </div>
 <!-- Adventure Registry and Engine Scripts -->
 <script src="js/adventure-registry.js"></script>
+<script src="adventures/minimal.js"></script>
 <script src="adventures/abyss.js"></script>
 <script src="js/if-engine.js"></script>
 
@@ -75,7 +76,7 @@
 // Initialize the Interactive Fiction Engine
 let gameEngine;
 
-// Auto-start the whispering-forest adventure (with backward compatibility for 'abyss')
+// Auto-start the minimal adventure
 document.addEventListener('DOMContentLoaded', async () => {
   gameEngine = new InteractiveFictionEngine();
   
@@ -88,8 +89,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   } catch(e) {}
   
-  // Load and start the whispering-forest adventure by default
-  await gameEngine.startAdventure('whispering-forest');
+  // Load and start the minimal adventure by default
+  await gameEngine.startAdventure('minimal');
 });
 
 // Global function for switching adventures (for future use)

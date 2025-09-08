@@ -5,19 +5,28 @@ const ADVENTURE_REGISTRY = {
   // Registry of available adventures
   adventures: [
     {
+      id: 'minimal',
+      title: 'Minimal Adventure',
+      author: 'ZHines2',
+      description: 'A simple text adventure in the style of classic Zork. Navigate through three simple rooms.',
+      file: 'adventures/minimal.js',
+      featured: true
+    },
+    {
       id: 'whispering-forest',
       title: 'The Whispering Forest',
       author: 'ZHines2',
       description: 'A mystery in the forest based on a poem. Awaken in a sunlit cabin and unravel the mystery of the puzzle box through nature\'s clues.',
       file: 'adventures/abyss.js',
-      featured: true
+      featured: false
     }
     // Future adventures can be added here
   ],
 
   // Legacy aliases for backward compatibility
   aliases: {
-    'abyss': 'whispering-forest'
+    'abyss': 'whispering-forest',
+    'default': 'minimal'
   },
   
   // Current loaded adventure
@@ -52,6 +61,8 @@ const ADVENTURE_REGISTRY = {
         // Browser environment - script should already be loaded
         if ((adventure.id === 'whispering-forest' || adventureId === 'abyss') && window.ABYSS_ADVENTURE) {
           this.currentAdventure = window.ABYSS_ADVENTURE;
+        } else if (adventure.id === 'minimal' && window.MINIMAL_ADVENTURE) {
+          this.currentAdventure = window.MINIMAL_ADVENTURE;
         } else {
           throw new Error(`Adventure script not loaded: ${adventure.file}`);
         }

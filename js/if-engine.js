@@ -24,6 +24,7 @@ class InteractiveFictionEngine {
       {name:"EXAMINE", unlock:true, fn:(args)=>this.onItem(args, "examine")},
       {name:"TAKE", unlock:true, fn:(args)=>this.take(args)},
       {name:"DROP", unlock:true, fn:(args)=>this.drop(args)},
+      {name:"OPEN", unlock:true, fn:(args)=>this.onItem(args, "open")},
       {name:"LIGHT", unlock:true, fn:(args)=>this.onItem(args, "light")},
       {name:"SIT", unlock:true, fn:(args)=>this.onItem(args, "sit")},
       {name:"ALIGN", unlock:true, fn:(args)=>this.onItem(args, "align")},
