@@ -86,19 +86,7 @@
   <div class="title-prompt">Press any key to begin...</div>
 </div>
 
-<!-- Ambient audio for atmosphere -->
-<audio id="ambientAudio" loop>
-  <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DwylgcBSuLx+3WlDsKE3m+8+OVRgwLVK/j" type="audio/wav">
-</audio>
 
-<!-- Sound effects -->
-<audio id="takeSound" preload="auto">
-  <source src="data:audio/wav;base64,UklGRsQDAABXQVZFZm10IBAAAAABAAEAgD4AAIA+AAABAAgAZGF0YQAAAABVrF1Oq1WvL6LH8bWl" type="audio/wav">
-</audio>
-
-<audio id="lightSound" preload="auto">
-  <source src="data:audio/wav;base64,UklGRsQDAABXQVZFZm10IBAAAAABAAEAgD4AAIA+AAABAAgAZGF0YQAAAABVkXRel3XLM6rK9Lup" type="audio/wav">
-</audio>
 <div class="wrap">
   <h1>Minimal Adventure</h1>
   <div class="terminal-container">
@@ -144,16 +132,6 @@ function startGame() {
     
     // Initialize and start the game
     gameEngine = new InteractiveFictionEngine();
-    
-    // Start ambient audio only if user has interacted
-    try {
-      const ambient = document.getElementById('ambientAudio');
-      if(ambient) {
-        ambient.volume = 0.1;
-        // Don't auto-play to avoid browser beeps - let user start audio manually
-        ambient.load(); // Pre-load but don't play
-      }
-    } catch(e) {}
     
     // Load and start the minimal adventure by default
     await gameEngine.startAdventure('minimal');

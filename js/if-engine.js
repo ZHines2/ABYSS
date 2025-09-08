@@ -213,21 +213,6 @@ class InteractiveFictionEngine {
     this.unlockVerb("TAKE"); 
     this.unlockVerb("DROP"); 
     this.say(`Taken: ${it.name}.`); 
-    
-    // Play take sound effect with better error handling
-    try {
-      const audio = document.getElementById('takeSound');
-      if(audio && audio.readyState >= 2) { // Only play if audio is loaded
-        audio.currentTime = 0; 
-        audio.volume = 0.2; 
-        audio.play().catch(e => {
-          // Silently fail - don't cause browser beeps
-        });
-      }
-    } catch(e) {
-      // Silently handle audio errors
-    }
-    
     this.advance(1); 
     this.renderUI();
   }
@@ -281,18 +266,6 @@ class InteractiveFictionEngine {
     if(ok){ 
       this.note(this.currentAdventure.victory.message); 
       this.note("Congratulations! You have solved the mystery!");
-      
-      // Play a victory sound effect if available
-      try { 
-        const audio = new Audio('data:audio/wav;base64,UklGRvIGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVgFAAA=');
-        audio.volume = 0.3;
-        // Use promise-based approach to avoid browser beeps on failure
-        audio.play().catch(e => {
-          // Silently fail - don't log or beep on audio failure
-        });
-      } catch(e) {
-        // Silently handle audio creation errors
-      }
     }
   }
   
@@ -471,7 +444,7 @@ class InteractiveFictionEngine {
     return [...new Set([...roomNouns, ...itemNouns, ...invNouns, ...dirNouns])];
   }
   
-  unlockNounBasics() { /* placeholder in case we later gate nouns */ }
+  unlockNounBasics() { }
   
   renderUI() {
     // Update inline status elements for minimal UI
