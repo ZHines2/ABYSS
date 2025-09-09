@@ -1,108 +1,124 @@
-# ABYSS — 3D Pixel Biome Game
+# ABYSS — Living Pixel Biome 2D
 
-A 3D pixel art exploration game built with WebGL, featuring procedurally generated biomes and a flowchart-based game state system.
+A 2D living pixel biome simulation where each pixel is a living organism that can grow, reproduce, mutate, and die. Built from scratch to create an actually working pixel ecosystem.
 
 ## Overview
 
-ABYSS is an atmospheric exploration game where you navigate through pixel-perfect 3D biomes. Each terrain type (water, grass, trees, rock) represents different game states with unique narrative elements and actions. The game features real-time 3D rendering with a retro pixel aesthetic.
+ABYSS is now a living pixel biome where every pixel behaves like a living organism. Each biome type (water, grass, trees, rock) has unique life behaviors that create organic, emergent ecosystems. The focus is on making pixels that actually "live" rather than complex 3D rendering.
 
 ## Features
 
-### 3D Pixel Biome Engine
-- **Procedural Terrain**: Heightfield generation using value noise
-- **Biome System**: Water, grass, forest, and rock environments
-- **Dynamic Lighting**: Quantized lighting system for pixel art aesthetics
-- **Real-time Parameters**: Adjustable water level, rock height, tree density
-- **Pixel Perfect Rendering**: Low-res rendering scaled up for crisp pixels
+### Living Pixel Ecosystem
+- **Individual Pixel Life**: Each pixel is a living organism with age, energy, and behaviors
+- **Biome Behaviors**: Water flows and spreads, grass grows slowly, trees live longer, rocks are stable
+- **Reproduction & Evolution**: Pixels can reproduce and mutate into different biome types
+- **Natural Death & Aging**: Pixels age and die naturally, creating organic population cycles
+- **Real-time Simulation**: Watch the ecosystem evolve in real-time with live statistics
 
-### Game State System
-- **Flowchart Navigation**: Each biome represents a different game state
-- **Contextual Actions**: Unique interactions for each environment
-- **Progress Tracking**: Player actions tracked across exploration
-- **Atmospheric Narrative**: Evocative descriptions for each biome state
+### Interactive Life Controls
+- **Life Speed**: Control how fast time passes in the biome
+- **Growth Rate**: Adjust how quickly organisms reproduce
+- **Death Rate**: Control natural mortality rates
+- **Mutation Rate**: Set how often evolution occurs between biome types
+- **Reset & Randomization**: Generate new biomes with different starting conditions
 
-### Interactive Controls
-- **Mouse Controls**: Drag to orbit camera, wheel to zoom
-- **Parameter Adjustment**: Real-time terrain modification via sliders
-- **Auto-rotation**: Configurable automatic camera movement
-- **Terrain Regeneration**: Generate new biomes with different seeds
+### Pixel Art Aesthetic
+- **2D Canvas Rendering**: Crisp pixel-perfect display with pixelated scaling
+- **Biome Color Coding**: Blue water, green grass, brown trees, gray rocks
+- **Age Visualization**: Pixels darken with age showing the passage of time
 
-## Game States
+## Biome Types
 
-### 🌊 Depths Unknown (Water)
-*"The pixel waters ripple with hidden currents. Ancient data flows beneath the surface..."*
-- Actions: Dive Deeper, Surface, Listen to Currents
+### 🔵 Water - Flows and Spreads
+*"Fluid pixels that seek empty spaces and expand their territory"*
+- Lifespan: 50-80 generations
+- Behavior: Flows into empty neighboring spaces
+- Reproduction: Spreads rapidly when conditions allow
 
-### 🌾 Fields of Memory (Grasslands)  
-*"Endless grasslands stretch before you, each blade a memory pixel storing echoes..."*
-- Actions: Gather Memories, Feel the Wind, Lie in the Grass
+### 🟢 Grass - Grows and Spreads Slowly
+*"Steady growth with occasional evolution into trees"*
+- Lifespan: 80-120 generations  
+- Behavior: Moderate reproduction rate
+- Evolution: Small chance to mutate into trees
 
-### 🌲 Grove of Secrets (Forest)
-*"Pixel trees tower around you, their geometric branches holding fragments of forgotten code..."*
-- Actions: Read the Trees, Follow the Path, Rest Among Roots
+### 🟤 Trees - Grow Tall, Live Longer
+*"Long-lived organisms that spawn grass around them"*
+- Lifespan: 150-250 generations
+- Behavior: Slow reproduction, often creates grass
+- Stability: Lives longest, provides ecosystem foundation
 
-### 🗻 Peak of Revelation (Rock)
-*"From these rocky heights, you see the pattern of the abyss spread below..."*
-- Actions: Survey the Realm, Descend, Seek Higher Ground
+### ⚪ Rock - Stable, Changes Slowly
+*"Nearly permanent structures that slowly grow or erode"*
+- Lifespan: 300-500 generations
+- Behavior: Very slow growth/erosion
+- Role: Provides stable foundation for ecosystem
 
 ## Technical Implementation
 
-### WebGL Rendering
-- **Vertex Shaders**: 3D position and biome attribute processing
-- **Fragment Shaders**: Posterized lighting and biome-based coloring
-- **Mesh Generation**: Quad-based heightfield with normal calculation
-- **Buffer Management**: Efficient vertex, normal, and index buffers
+### Canvas 2D Rendering
+- **Pixel-perfect Display**: Each organism is a single pixel with crisp rendering
+- **Real-time Animation**: 60 FPS updates with configurable simulation speed
+- **Color Coding**: Distinct colors for each biome type with age-based darkening
+- **Scalable Display**: Low-resolution simulation scaled up for visibility
 
-### Procedural Generation
-- **Value Noise**: Smooth terrain height generation
-- **Biome Assignment**: Height and moisture-based biome classification
-- **Seed System**: Reproducible terrain with randomizable seeds
-- **Real-time Updates**: Dynamic parameter adjustment
+### Living Organism System
+- **Individual Life Cycles**: Each pixel tracks age, energy, reproduction status
+- **Biome-specific Behaviors**: Custom update logic for each organism type
+- **Neighbor Detection**: Organisms can sense and interact with surrounding pixels
+- **Energy Management**: Reproduction costs energy, death occurs when energy depletes
+
+### Population Dynamics
+- **Real-time Statistics**: Live tracking of population, generation, and diversity
+- **Emergent Behaviors**: Complex ecosystem patterns emerge from simple rules
+- **Parameter Control**: Adjustable rates for growth, death, mutation, and time speed
+- **Ecosystem Balance**: Natural cycles of growth, competition, and stability
 
 ## Getting Started
 
-1. Open `index.html` in a modern web browser with WebGL support
-2. Use the controls to adjust terrain parameters
-3. Drag to orbit the camera and zoom with mouse wheel
-4. Click action buttons to explore different game states
-5. Generate new biomes with the "New Biome" button
+1. Open `index.html` in a modern web browser (no special requirements needed)
+2. Watch the living pixel biome evolve in real-time
+3. Adjust life parameters with the sliders to see different behaviors
+4. Use Reset Biome to start fresh or Random Seed for new starting patterns
+5. Experiment with different growth/death/mutation rates to create unique ecosystems
 
 ## File Structure
 ```
 /
-├── index.html          # Complete game implementation
-├── LICENSE             # License file
-└── README.md          # This file
+├── index.html              # Living pixel biome simulation
+├── living-pixels-2d.html   # Same implementation (backup)
+├── index_backup.html       # Original 3D implementation backup
+├── LICENSE                 # License file
+└── README.md              # This file
 ```
 
 ## Browser Requirements
 
-- Modern browser with WebGL 1.0 support
-- Hardware-accelerated graphics recommended
-- Mouse for camera controls
-- No external dependencies required
+- Modern browser with HTML5 Canvas support (any recent browser works)
+- No external dependencies or special graphics requirements
+- Works on desktop and mobile devices
 
 ## Development Notes
 
-The game uses pure WebGL with no external libraries, implementing:
-- Custom matrix math for 3D transformations
-- Procedural noise functions for terrain generation
-- State management for game progression
-- Real-time parameter adjustment system
+The simulation uses pure HTML5 Canvas with no external libraries, implementing:
+- Custom pixel-based life simulation with age, energy, and behavior systems
+- Real-time ecosystem dynamics with reproduction, mutation, and death
+- Interactive parameter controls for experimenting with different life conditions
+- Efficient 2D rendering optimized for smooth real-time animation
 
 ## Future Enhancements
 
-- Enhanced biome variety and visual effects
-- Audio system for atmospheric sound
-- More complex game state transitions
-- Save/load functionality for exploration progress
-- Mobile touch controls
+- Sound effects for birth, death, and ecosystem changes
+- More complex biome interactions and symbiotic relationships  
+- Save/load ecosystem states for sharing interesting patterns
+- Additional biome types with unique behaviors
+- Touch controls for mobile devices
+- Time-lapse recording of ecosystem evolution
 
 ## Credits
 
-- **Concept**: ZHines2's vision of ABYSS as flowchart game states
-- **Implementation**: 3D pixel biome foundation with WebGL
-- **Art Style**: Pixel-perfect low-res aesthetic with posterized lighting
+- **Concept**: ZHines2's vision inspired by t3ssel8r's pixel art
+- **Implementation**: Complete rewrite focusing on actual living pixel behaviors
+- **Philosophy**: "Make something that works" - prioritizing functional life simulation over complex graphics
 
 ## License
 
