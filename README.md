@@ -1,158 +1,108 @@
-# Interactive Fiction Engine
+# ABYSS — 3D Pixel Biome Game
 
-A modular interactive fiction engine that supports multiple text adventure games.
+A 3D pixel art exploration game built with WebGL, featuring procedurally generated biomes and a flowchart-based game state system.
 
 ## Overview
 
-This engine has been refactored from a single-adventure system into a modular framework that can host multiple interactive fiction experiences. The current implementation features the ABYSS adventure based on a poem by ZHines2.
-
-## Architecture
-
-### Core Components
-
-1. **Interactive Fiction Engine** (`js/if-engine.js`)
-   - Generic game engine that can run any adventure
-   - Handles core mechanics: movement, inventory, commands, UI
-   - Adventure-agnostic implementation
-
-2. **Adventure Registry** (`js/adventure-registry.js`)
-   - Manages multiple adventures
-   - Handles adventure loading and validation
-   - Extensible for future adventures
-
-3. **Adventure Definitions** (`adventures/`)
-   - Individual adventure files containing world data
-   - Each adventure is self-contained with rooms, items, scripts
-   - Example: `adventures/abyss.js`
-
-### Current Adventures
-
-#### The Whispering Forest
-- **Author**: ZHines2
-- **Based on**: Original poem "the rustling of leaves..."
-- **Description**: Awaken in a sunlit cabin and unravel the mystery of the puzzle box through nature's clues
-- **Features**: Time-based atmosphere, environmental puzzles, poetic narrative
-
-## Adding New Adventures
-
-To add a new adventure to the system:
-
-1. Create a new adventure file in the `adventures/` directory
-2. Follow the adventure structure format (see `adventures/abyss.js` as example)
-3. Register the adventure in `js/adventure-registry.js`
-4. Include the adventure script in `index.html`
-
-### Adventure Structure
-
-```javascript
-const YOUR_ADVENTURE = {
-  title: "Adventure Title",
-  subtitle: "Short description",
-  author: "Author Name",
-  description: "Longer description for selection screen",
-  
-  // Starting conditions
-  startingRoom: "roomId",
-  startingTime: 6*60, // minutes from midnight
-  startingFlags: { /* custom flags */ },
-  startingInventory: [], // starting items
-  
-  // World definition
-  rooms: {
-    roomId: {
-      name: "Room Name",
-      desc: {
-        morning: "Morning description",
-        day: "Day description", 
-        evening: "Evening description"
-      },
-      exits: { north: "otherRoomId" },
-      items: ["itemId"],
-      nouns: ["contextual", "nouns"]
-    }
-  },
-  
-  items: {
-    itemId: {
-      name: "item name",
-      nouns: ["synonyms", "for", "item"],
-      desc: "Description when examined",
-      take: true/false,
-      state: { /* custom state */ },
-      scripts: {
-        examine: (game) => "Response text",
-        take: (game) => "Response text",
-        // ... other action handlers
-      }
-    }
-  },
-  
-  // Victory condition
-  victory: {
-    clues: ["required", "clues", "for", "victory"],
-    message: "Victory message"
-  },
-  
-  // Optional custom logic
-  customLook: function(game) {
-    // Adventure-specific logic during look command
-  },
-  
-  welcomeMessage: function() {
-    return [
-      "Welcome message line 1",
-      "Welcome message line 2"
-    ];
-  }
-};
-```
+ABYSS is an atmospheric exploration game where you navigate through pixel-perfect 3D biomes. Each terrain type (water, grass, trees, rock) represents different game states with unique narrative elements and actions. The game features real-time 3D rendering with a retro pixel aesthetic.
 
 ## Features
 
-### Core Engine Features
-- **Command System**: Natural language parsing with synonyms
-- **Inventory Management**: Take, drop, examine items
-- **Movement**: Navigate between rooms with directional commands
-- **Time System**: Dynamic descriptions based on time of day
-- **Save/Load**: Persistent game state using localStorage
-- **Command History**: Arrow key navigation through previous commands
-- **Smart Error Handling**: Helpful suggestions for unknown commands
-- **Contextual UI**: Interactive verb/noun buttons for quick input
+### 3D Pixel Biome Engine
+- **Procedural Terrain**: Heightfield generation using value noise
+- **Biome System**: Water, grass, forest, and rock environments
+- **Dynamic Lighting**: Quantized lighting system for pixel art aesthetics
+- **Real-time Parameters**: Adjustable water level, rock height, tree density
+- **Pixel Perfect Rendering**: Low-res rendering scaled up for crisp pixels
 
-### Adventure-Specific Features
-- **Custom Scripts**: Each item can have custom interaction scripts
-- **Environmental Clues**: Location and time-based clue discovery
-- **Victory Conditions**: Flexible win conditions based on collected clues
-- **Sound Effects**: Audio feedback for actions (optional)
-- **Custom Logic**: Adventure-specific behavior hooks
+### Game State System
+- **Flowchart Navigation**: Each biome represents a different game state
+- **Contextual Actions**: Unique interactions for each environment
+- **Progress Tracking**: Player actions tracked across exploration
+- **Atmospheric Narrative**: Evocative descriptions for each biome state
 
-## Development
+### Interactive Controls
+- **Mouse Controls**: Drag to orbit camera, wheel to zoom
+- **Parameter Adjustment**: Real-time terrain modification via sliders
+- **Auto-rotation**: Configurable automatic camera movement
+- **Terrain Regeneration**: Generate new biomes with different seeds
 
-### File Structure
+## Game States
+
+### 🌊 Depths Unknown (Water)
+*"The pixel waters ripple with hidden currents. Ancient data flows beneath the surface..."*
+- Actions: Dive Deeper, Surface, Listen to Currents
+
+### 🌾 Fields of Memory (Grasslands)  
+*"Endless grasslands stretch before you, each blade a memory pixel storing echoes..."*
+- Actions: Gather Memories, Feel the Wind, Lie in the Grass
+
+### 🌲 Grove of Secrets (Forest)
+*"Pixel trees tower around you, their geometric branches holding fragments of forgotten code..."*
+- Actions: Read the Trees, Follow the Path, Rest Among Roots
+
+### 🗻 Peak of Revelation (Rock)
+*"From these rocky heights, you see the pattern of the abyss spread below..."*
+- Actions: Survey the Realm, Descend, Seek Higher Ground
+
+## Technical Implementation
+
+### WebGL Rendering
+- **Vertex Shaders**: 3D position and biome attribute processing
+- **Fragment Shaders**: Posterized lighting and biome-based coloring
+- **Mesh Generation**: Quad-based heightfield with normal calculation
+- **Buffer Management**: Efficient vertex, normal, and index buffers
+
+### Procedural Generation
+- **Value Noise**: Smooth terrain height generation
+- **Biome Assignment**: Height and moisture-based biome classification
+- **Seed System**: Reproducible terrain with randomizable seeds
+- **Real-time Updates**: Dynamic parameter adjustment
+
+## Getting Started
+
+1. Open `index.html` in a modern web browser with WebGL support
+2. Use the controls to adjust terrain parameters
+3. Drag to orbit the camera and zoom with mouse wheel
+4. Click action buttons to explore different game states
+5. Generate new biomes with the "New Biome" button
+
+## File Structure
 ```
 /
-├── index.html              # Main game interface
-├── js/
-│   ├── if-engine.js        # Core game engine
-│   └── adventure-registry.js # Adventure management
-├── adventures/
-│   └── abyss.js           # ABYSS adventure definition
-└── README.md              # This file
+├── index.html          # Complete game implementation
+├── LICENSE             # License file
+└── README.md          # This file
 ```
 
-### Future Enhancements
-- Adventure selection screen
-- Adventure marketplace/gallery
-- Visual novel support
-- Multiplayer adventures
-- Adventure creation tools
-- Enhanced audio/visual effects
+## Browser Requirements
+
+- Modern browser with WebGL 1.0 support
+- Hardware-accelerated graphics recommended
+- Mouse for camera controls
+- No external dependencies required
+
+## Development Notes
+
+The game uses pure WebGL with no external libraries, implementing:
+- Custom matrix math for 3D transformations
+- Procedural noise functions for terrain generation
+- State management for game progression
+- Real-time parameter adjustment system
+
+## Future Enhancements
+
+- Enhanced biome variety and visual effects
+- Audio system for atmospheric sound
+- More complex game state transitions
+- Save/load functionality for exploration progress
+- Mobile touch controls
 
 ## Credits
 
-- **Engine**: Interactive Fiction Engine v2.0
-- **ABYSS Adventure**: Based on original poem by ZHines2
-- **Original Implementation**: Single-adventure version with bug fixes and UX enhancements
+- **Concept**: ZHines2's vision of ABYSS as flowchart game states
+- **Implementation**: 3D pixel biome foundation with WebGL
+- **Art Style**: Pixel-perfect low-res aesthetic with posterized lighting
 
 ## License
 
