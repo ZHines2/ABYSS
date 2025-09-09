@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ABYSS — 3D Pixel Biome Game</title>
+<title>ABYSS — Living Pixel Biome 2D</title>
 <style>
 body{margin:0;background:#111;color:#eee;font:14px/1.4 monospace;overflow:hidden}
 .wrap{height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px;box-sizing:border-box}
@@ -12,437 +12,410 @@ h1{margin:0 0 20px;text-align:center;font-size:24px}
 canvas{display:block;border:2px solid #666;image-rendering:pixelated;image-rendering:-moz-crisp-edges;image-rendering:crisp-edges}
 .btn{background:#333;border:1px solid #666;color:#eee;padding:8px 16px;border-radius:4px;cursor:pointer;font:inherit}
 .btn:hover{background:#444;border-color:#888}
-.grid{display:grid;gap:10px;margin-top:10px}
+.controls{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 label{display:flex;flex-direction:column;gap:4px;font-size:12px}
 input[type=range]{width:200px}
-p{margin:10px 0 0;max-width:300px;font-size:11px;line-height:1.3}
-
-/* Game State UI */
-.game-state{position:absolute;top:20px;left:20px;background:rgba(0,0,0,0.8);padding:15px;border-radius:8px;border:1px solid #666;min-width:200px}
-.state-title{font-size:16px;margin-bottom:10px;color:#fff}
-.state-desc{font-size:12px;margin-bottom:15px;color:#ccc;line-height:1.4}
-.actions{display:flex;flex-direction:column;gap:8px}
-.action-btn{background:#2a4d3a;border:1px solid #3a6d4a;color:#fff;padding:8px 12px;border-radius:4px;cursor:pointer;text-align:left;font:inherit;transition:all 0.2s}
-.action-btn:hover{background:#3a6d4a;border-color:#4a8d5a}
-.progress{margin-top:15px;font-size:11px;color:#999}
+.biome-info{background:#333;padding:10px;border-radius:4px;margin-top:10px;font-size:11px}
+.stats{margin-top:10px;font-size:11px;color:#999}
 </style>
 </head>
 <body>
 
 <div class="wrap">
-  <h1>ABYSS — <span style="opacity:.8">3D Pixel Biome Exploration</span></h1>
+  <h1>ABYSS — <span style="opacity:.8">Living Pixel Biome</span></h1>
   <div class="row">
     <div class="panel">
-      <!-- Low-res canvas scaled up for chunky pixels -->
-      <canvas id="gl" width="320" height="180" style="width:min(90vw,800px);height:calc(min(90vw,800px)*0.5625);"></canvas>
+      <canvas id="canvas" width="200" height="200" style="width:400px;height:400px;"></canvas>
     </div>
     <div class="panel" style="min-width:260px;max-width:340px">
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-        <button class="btn" id="regen">New Biome</button>
+        <button class="btn" id="reset">Reset Biome</button>
         <button class="btn" id="pause">Pause</button>
-        <button class="btn" id="reset">Reset View</button>
+        <button class="btn" id="seed">Random Seed</button>
       </div>
-      <div class="grid">
-        <label>Grid Resolution
-          <input id="res" type="range" min="32" max="96" step="16" value="64">
+      
+      <div class="controls">
+        <label>Life Speed
+          <input id="speed" type="range" min="1" max="10" value="3">
         </label>
-        <label>Light Levels
-          <input id="steps" type="range" min="2" max="8" value="4">
+        <label>Growth Rate
+          <input id="growth" type="range" min="0.1" max="2" step="0.1" value="0.8">
         </label>
-        <label>Water Level
-          <input id="water" type="range" min="0.15" max="0.5" step="0.01" value="0.28">
+        <label>Death Rate  
+          <input id="death" type="range" min="0.01" max="0.1" step="0.01" value="0.03">
         </label>
-        <label>Rock Height
-          <input id="rock" type="range" min="0.55" max="0.9" step="0.01" value="0.75">
-        </label>
-        <label>Tree Density
-          <input id="trees" type="range" min="0.45" max="0.85" step="0.01" value="0.62">
-        </label>
-        <label>Auto‑Rotate Speed
-          <input id="rot" type="range" min="-1.5" max="1.5" step="0.01" value="0.35">
+        <label>Mutation Rate
+          <input id="mutation" type="range" min="0" max="0.2" step="0.01" value="0.05">
         </label>
       </div>
-      <p>Drag to orbit • Wheel to zoom • This is the foundation for ABYSS game states.</p>
+
+      <div class="biome-info">
+        <strong>Living Pixel Biome</strong><br>
+        Each pixel is a living organism that can grow, reproduce, mutate, and die. 
+        Different colors represent different biome types with unique behaviors.
+        <br><br>
+        🔵 Water - Flows and spreads<br>
+        🟢 Grass - Grows and spreads slowly<br>
+        🟤 Trees - Grow tall, live longer<br>
+        ⚪ Rock - Stable, changes slowly<br>
+      </div>
+
+      <div class="stats" id="stats">
+        Population: 0<br>
+        Generation: 0<br>
+        Diversity: 0%
+      </div>
     </div>
   </div>
 </div>
 
-<!-- Game State Panel -->
-<div class="game-state" id="gameState">
-  <div class="state-title">The Abyss Calls</div>
-  <div class="state-desc">You stand at the edge of an infinite pixel realm. Each biome holds secrets, each height tells a story of what lies beneath.</div>
-  <div class="actions">
-    <button class="action-btn" onclick="exploreWater()">Descend to Water's Edge</button>
-    <button class="action-btn" onclick="climbRock()">Ascend the Rocky Heights</button>
-    <button class="action-btn" onclick="wanderForest()">Wander Through Trees</button>
-    <button class="action-btn" onclick="seekGrass()">Rest in Grasslands</button>
-  </div>
-  <div class="progress" id="progress">Click actions to explore the pixel abyss...</div>
-</div>
-
 <script>
-// ---------- WebGL Setup ----------
-const canvas = document.getElementById('gl');
-const gl = canvas.getContext('webgl');
-if (!gl) {
-  alert('WebGL not supported');
-  throw new Error('WebGL not supported');
-}
+// Living Pixel Biome System
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const width = canvas.width;
+const height = canvas.height;
 
-// Vertex shader
-const vertSrc = `
-  attribute vec3 a_pos; // x,z on plane, y = height
-  attribute vec3 a_norm;
-  attribute float a_biome; // 0 water, 1 grass, 2 tree, 3 rock
-  uniform mat4 u_mvp;
-  varying vec3 v_n;
-  varying float v_b;
-  varying float v_h;
-  void main(){
-    v_n = a_norm;
-    v_b = a_biome;
-    v_h = a_pos.y;
-    gl_Position = u_mvp * vec4(a_pos,1.0);
-  }`;
-
-// Fragment shader  
-const fragSrc = `
-  precision mediump float;
-  varying vec3 v_n; varying float v_b; varying float v_h;
-  uniform vec3 u_lightDir;
-  uniform float u_steps; // palette steps
-  // palettes
-  vec3 water = vec3(0.12,0.36,1.0);
-  vec3 grass = vec3(0.35,0.78,0.41);
-  vec3 tree  = vec3(0.18,0.48,0.27);
-  vec3 rock  = vec3(0.63,0.60,0.65);
-  vec3 pick(float b){
-    if(b<0.5) return water; else if(b<1.5) return grass; else if(b<2.5) return tree; else return rock;
-  }
-  void main(){
-    // Lambert, but quantized to steps
-    float l = max(dot(normalize(v_n), normalize(u_lightDir)), 0.0);
-    float q = floor(l*u_steps)/u_steps; // posterize
-    vec3 base = pick(v_b);
-    gl_FragColor = vec4(base*q, 1.0);
-  }`;
-
-function compile(type,src){const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s); if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(s); return s}
-const prog = gl.createProgram(); gl.attachShader(prog, compile(gl.VERTEX_SHADER,vertSrc)); gl.attachShader(prog, compile(gl.FRAGMENT_SHADER,fragSrc)); gl.linkProgram(prog); if(!gl.getProgramParameter(prog,gl.LINK_STATUS)) throw gl.getProgramInfoLog(prog);
-gl.useProgram(prog);
-
-// Uniforms
-const u_mvp = gl.getUniformLocation(prog,'u_mvp');
-const u_lightDir = gl.getUniformLocation(prog,'u_lightDir');
-const u_steps = gl.getUniformLocation(prog,'u_steps');
-
-// Attributes
-const attribs = {
-  a_pos: gl.getAttribLocation(prog,'a_pos'),
-  a_norm: gl.getAttribLocation(prog,'a_norm'),
-  a_biome: gl.getAttribLocation(prog,'a_biome'),
+// Biome types
+const BIOMES = {
+  EMPTY: 0,
+  WATER: 1,
+  GRASS: 2, 
+  TREE: 3,
+  ROCK: 4
 };
 
-// ---------- World Generation ----------
-let buffers=null, counts=0;
-const state = {
-  seed: (Math.random()*1e9)>>>0,
-  res: 64,
-  steps: 4,
-  water: 0.28,
-  rock: 0.75,
-  trees: 0.62,
-  rotSpeed: 0.35,
-  paused: false,
-  cam: {yaw:0.6, pitch:-0.5, dist:3.0}
+const BIOME_COLORS = {
+  [BIOMES.EMPTY]: [17, 17, 17],     // Dark background
+  [BIOMES.WATER]: [30, 90, 255],    // Blue water
+  [BIOMES.GRASS]: [90, 200, 105],   // Green grass
+  [BIOMES.TREE]: [45, 120, 70],     // Dark green trees
+  [BIOMES.ROCK]: [160, 155, 170]    // Gray rock
 };
 
-// Simple value noise
-function makeValueNoise(seed) {
-  function hash(x, y) {
-    let h = seed ^ ((x * 374761393) + (y * 668265263));
-    h = (h ^ (h >>> 13)) * 1274126177;
-    return (h ^ (h >>> 16)) / 4294967296;
+// Living pixel class
+class LivingPixel {
+  constructor(x, y, biome, age = 0) {
+    this.x = x;
+    this.y = y;
+    this.biome = biome;
+    this.age = age;
+    this.energy = Math.random() * 100 + 50;
+    this.maxAge = this.getMaxAge();
+    this.reproduced = false;
   }
-  return function(x, y) {
-    const ix = Math.floor(x), iy = Math.floor(y);
-    const fx = x - ix, fy = y - iy;
-    const a = hash(ix, iy), b = hash(ix+1, iy), c = hash(ix, iy+1), d = hash(ix+1, iy+1);
-    const i1 = a + (b-a) * fx, i2 = c + (d-c) * fx;
-    return i1 + (i2-i1) * fy;
-  };
-}
 
-function buildMesh(){
-  const N = state.res;
-  const heightN = makeValueNoise(state.seed ^ 0xA53);
-  const moistN = makeValueNoise(state.seed ^ 0xBEE);
-  const scaleH = 2.0, scaleM = 2.8;
-  const hAmp = 0.25;
-
-  const vcount = (N+1)*(N+1);
-  const icount = N*N*6;
-  const pos = new Float32Array(vcount*3);
-  const norm = new Float32Array(vcount*3);
-  const bio = new Float32Array(vcount);
-  const idx = new Uint16Array(icount);
-
-  function hAt(x,z){return heightN(x*scaleH, z*scaleH);}
-  function mAt(x,z){return moistN(x*scaleM, z*scaleM);}
-
-  let p=0, b=0;
-  for(let j=0; j<=N; j++){
-    for(let i=0; i<=N; i++){
-      const x = (i/N - 0.5) * 2;
-      const z = (j/N - 0.5) * 2;
-      const h = hAt(x,z) * hAmp;
-      const m = mAt(x,z);
-      
-      pos[p++] = x; pos[p++] = h; pos[p++] = z;
-      
-      // Determine biome
-      let biome;
-      if(h < state.water*hAmp) biome = 0; // water
-      else if(h > state.rock*hAmp) biome = 3; // rock  
-      else if(m > state.trees) biome = 2; // tree
-      else biome = 1; // grass
-      bio[b++] = biome;
+  getMaxAge() {
+    switch(this.biome) {
+      case BIOMES.WATER: return 50 + Math.random() * 30;
+      case BIOMES.GRASS: return 80 + Math.random() * 40;
+      case BIOMES.TREE: return 150 + Math.random() * 100;
+      case BIOMES.ROCK: return 300 + Math.random() * 200;
+      default: return 1;
     }
   }
 
-  // Calculate normals and indices
-  let n=0, idx_i=0;
-  for(let j=0; j<=N; j++){
-    for(let i=0; i<=N; i++){
-      // Simple normal calculation
-      const dx = i<N ? pos[(j*(N+1)+(i+1))*3+1] - pos[(j*(N+1)+i)*3+1] : 0;
-      const dz = j<N ? pos[((j+1)*(N+1)+i)*3+1] - pos[(j*(N+1)+i)*3+1] : 0;
-      const len = Math.sqrt(dx*dx + 1 + dz*dz);
-      norm[n++] = -dx/len; norm[n++] = 1/len; norm[n++] = -dz/len;
-      
-      // Indices for quads
-      if(i<N && j<N){
-        const tl = j*(N+1)+i, tr = tl+1, bl = (j+1)*(N+1)+i, br = bl+1;
-        idx[idx_i++] = tl; idx[idx_i++] = bl; idx[idx_i++] = tr;
-        idx[idx_i++] = tr; idx[idx_i++] = bl; idx[idx_i++] = br;
+  update(world, params) {
+    this.age++;
+    
+    // Natural death
+    if (this.age > this.maxAge || this.energy <= 0) {
+      return null; // Dies
+    }
+
+    // Lose energy over time
+    this.energy -= params.death * 10;
+
+    // Biome-specific behaviors
+    switch(this.biome) {
+      case BIOMES.WATER:
+        return this.updateWater(world, params);
+      case BIOMES.GRASS:
+        return this.updateGrass(world, params);
+      case BIOMES.TREE:
+        return this.updateTree(world, params);
+      case BIOMES.ROCK:
+        return this.updateRock(world, params);
+    }
+    
+    return this;
+  }
+
+  updateWater(world, params) {
+    // Water flows to empty spaces
+    if (Math.random() < params.growth * 0.5) {
+      const neighbors = this.getEmptyNeighbors(world);
+      if (neighbors.length > 0) {
+        const target = neighbors[Math.floor(Math.random() * neighbors.length)];
+        return [this, new LivingPixel(target.x, target.y, BIOMES.WATER)];
+      }
+    }
+    return this;
+  }
+
+  updateGrass(world, params) {
+    // Grass grows and reproduces
+    if (this.energy > 70 && Math.random() < params.growth * 0.3) {
+      const neighbors = this.getEmptyNeighbors(world);
+      if (neighbors.length > 0) {
+        const target = neighbors[Math.floor(Math.random() * neighbors.length)];
+        this.energy -= 30;
+        let newBiome = BIOMES.GRASS;
+        
+        // Small chance to evolve into tree
+        if (Math.random() < params.mutation) {
+          newBiome = BIOMES.TREE;
+        }
+        
+        return [this, new LivingPixel(target.x, target.y, newBiome)];
+      }
+    }
+    return this;
+  }
+
+  updateTree(world, params) {
+    // Trees grow slowly but live long
+    if (this.energy > 80 && Math.random() < params.growth * 0.15) {
+      const neighbors = this.getEmptyNeighbors(world);
+      if (neighbors.length > 0) {
+        const target = neighbors[Math.floor(Math.random() * neighbors.length)];
+        this.energy -= 40;
+        
+        let newBiome = BIOMES.TREE;
+        // Trees can spawn grass around them
+        if (Math.random() < 0.6) {
+          newBiome = BIOMES.GRASS;
+        }
+        
+        return [this, new LivingPixel(target.x, target.y, newBiome)];
+      }
+    }
+    return this;
+  }
+
+  updateRock(world, params) {
+    // Rocks are stable but can slowly erode or grow
+    if (Math.random() < params.mutation * 0.1) {
+      const neighbors = this.getEmptyNeighbors(world);
+      if (neighbors.length > 0 && Math.random() < 0.1) {
+        const target = neighbors[Math.floor(Math.random() * neighbors.length)];
+        return [this, new LivingPixel(target.x, target.y, BIOMES.ROCK)];
+      }
+    }
+    return this;
+  }
+
+  getEmptyNeighbors(world) {
+    const neighbors = [];
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = this.x + dx;
+        const ny = this.y + dy;
+        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+          if (!world[ny][nx] || world[ny][nx].biome === BIOMES.EMPTY) {
+            neighbors.push({x: nx, y: ny});
+          }
+        }
+      }
+    }
+    return neighbors;
+  }
+}
+
+// World state
+let world = [];
+let generation = 0;
+let paused = false;
+let lastTime = 0;
+
+// Parameters
+const params = {
+  speed: 3,
+  growth: 0.8,
+  death: 0.03,
+  mutation: 0.05
+};
+
+// Initialize world
+function initWorld() {
+  world = [];
+  for (let y = 0; y < height; y++) {
+    world[y] = [];
+    for (let x = 0; x < width; x++) {
+      world[y][x] = null;
+    }
+  }
+  
+  // Seed initial life
+  seedLife();
+  generation = 0;
+}
+
+function seedLife() {
+  // Add some initial pixels of each type
+  const centerX = Math.floor(width / 2);
+  const centerY = Math.floor(height / 2);
+  
+  // Central water source
+  for (let i = 0; i < 20; i++) {
+    const x = centerX + (Math.random() - 0.5) * 20;
+    const y = centerY + (Math.random() - 0.5) * 20;
+    if (x >= 0 && x < width && y >= 0 && y < height) {
+      world[Math.floor(y)][Math.floor(x)] = new LivingPixel(Math.floor(x), Math.floor(y), BIOMES.WATER);
+    }
+  }
+  
+  // Scattered grass
+  for (let i = 0; i < 30; i++) {
+    const x = Math.floor(Math.random() * width);
+    const y = Math.floor(Math.random() * height);
+    if (!world[y][x]) {
+      world[y][x] = new LivingPixel(x, y, BIOMES.GRASS);
+    }
+  }
+  
+  // Some trees
+  for (let i = 0; i < 10; i++) {
+    const x = Math.floor(Math.random() * width);
+    const y = Math.floor(Math.random() * height);
+    if (!world[y][x]) {
+      world[y][x] = new LivingPixel(x, y, BIOMES.TREE);
+    }
+  }
+  
+  // Few rocks
+  for (let i = 0; i < 15; i++) {
+    const x = Math.floor(Math.random() * width);
+    const y = Math.floor(Math.random() * height);
+    if (!world[y][x]) {
+      world[y][x] = new LivingPixel(x, y, BIOMES.ROCK);
+    }
+  }
+}
+
+function updateWorld() {
+  if (paused) return;
+  
+  const newWorld = [];
+  for (let y = 0; y < height; y++) {
+    newWorld[y] = [];
+    for (let x = 0; x < width; x++) {
+      newWorld[y][x] = null;
+    }
+  }
+  
+  // Update all living pixels
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const pixel = world[y][x];
+      if (pixel) {
+        const result = pixel.update(world, params);
+        
+        if (Array.isArray(result)) {
+          // Pixel reproduced
+          const [parent, child] = result;
+          newWorld[parent.y][parent.x] = parent;
+          if (!newWorld[child.y][child.x]) {
+            newWorld[child.y][child.x] = child;
+          }
+        } else if (result) {
+          // Pixel survived
+          newWorld[y][x] = result;
+        }
+        // If result is null, pixel died
       }
     }
   }
-
-  // Create buffers
-  if(buffers) {
-    gl.deleteBuffer(buffers.pos);
-    gl.deleteBuffer(buffers.norm);
-    gl.deleteBuffer(buffers.bio);
-    gl.deleteBuffer(buffers.idx);
-  }
   
-  buffers = {
-    pos: gl.createBuffer(),
-    norm: gl.createBuffer(), 
-    bio: gl.createBuffer(),
-    idx: gl.createBuffer()
-  };
-  
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.pos);
-  gl.bufferData(gl.ARRAY_BUFFER, pos, gl.STATIC_DRAW);
-  
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.norm);
-  gl.bufferData(gl.ARRAY_BUFFER, norm, gl.STATIC_DRAW);
-  
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.bio);
-  gl.bufferData(gl.ARRAY_BUFFER, bio, gl.STATIC_DRAW);
-  
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.idx);
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
-  
-  counts = icount;
+  world = newWorld;
+  generation++;
 }
 
-// ---------- Camera and Matrix Math ----------
-function perspective(fov, aspect, near, far) {
-  const f = 1 / Math.tan(fov/2);
-  return new Float32Array([
-    f/aspect, 0, 0, 0,
-    0, f, 0, 0,
-    0, 0, (far+near)/(near-far), (2*far*near)/(near-far),
-    0, 0, -1, 0
-  ]);
-}
-
-function multiply(a, b) {
-  const result = new Float32Array(16);
-  for(let i=0; i<4; i++) {
-    for(let j=0; j<4; j++) {
-      result[i*4+j] = a[i*4]*b[j] + a[i*4+1]*b[4+j] + a[i*4+2]*b[8+j] + a[i*4+3]*b[12+j];
+function render() {
+  // Clear canvas
+  ctx.fillStyle = '#111111';
+  ctx.fillRect(0, 0, width, height);
+  
+  // Draw pixels
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const pixel = world[y][x];
+      if (pixel) {
+        const color = BIOME_COLORS[pixel.biome];
+        
+        // Add age-based variation
+        const ageFactor = Math.min(pixel.age / pixel.maxAge, 1);
+        const r = Math.floor(color[0] * (1 - ageFactor * 0.3));
+        const g = Math.floor(color[1] * (1 - ageFactor * 0.3));
+        const b = Math.floor(color[2] * (1 - ageFactor * 0.3));
+        
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillRect(x, y, 1, 1);
+      }
     }
   }
-  return result;
+  
+  // Update stats
+  updateStats();
 }
 
-function lookAt(eye, center, up) {
-  const f = [center[0]-eye[0], center[1]-eye[1], center[2]-eye[2]];
-  const flen = Math.sqrt(f[0]*f[0] + f[1]*f[1] + f[2]*f[2]);
-  f[0]/=flen; f[1]/=flen; f[2]/=flen;
+function updateStats() {
+  let population = 0;
+  const biomeCounts = {};
   
-  const s = [f[1]*up[2]-f[2]*up[1], f[2]*up[0]-f[0]*up[2], f[0]*up[1]-f[1]*up[0]];
-  const slen = Math.sqrt(s[0]*s[0] + s[1]*s[1] + s[2]*s[2]);
-  s[0]/=slen; s[1]/=slen; s[2]/=slen;
-  
-  const u = [s[1]*f[2]-s[2]*f[1], s[2]*f[0]-s[0]*f[2], s[0]*f[1]-s[1]*f[0]];
-  
-  return new Float32Array([
-    s[0], u[0], -f[0], 0,
-    s[1], u[1], -f[1], 0,
-    s[2], u[2], -f[2], 0,
-    -(s[0]*eye[0]+s[1]*eye[1]+s[2]*eye[2]),
-    -(u[0]*eye[0]+u[1]*eye[1]+u[2]*eye[2]),
-    (f[0]*eye[0]+f[1]*eye[1]+f[2]*eye[2]), 1
-  ]);
-}
-
-// ---------- Render Loop ----------
-function render(time) {
-  if(!state.paused) {
-    state.cam.yaw += state.rotSpeed * 0.01;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const pixel = world[y][x];
+      if (pixel) {
+        population++;
+        biomeCounts[pixel.biome] = (biomeCounts[pixel.biome] || 0) + 1;
+      }
+    }
   }
   
-  const cx = Math.cos(state.cam.yaw) * Math.cos(state.cam.pitch) * state.cam.dist;
-  const cy = Math.sin(state.cam.pitch) * state.cam.dist;
-  const cz = Math.sin(state.cam.yaw) * Math.cos(state.cam.pitch) * state.cam.dist;
+  const diversity = Object.keys(biomeCounts).length;
+  const diversityPercent = Math.round((diversity / 4) * 100);
   
-  const proj = perspective(Math.PI/4, canvas.width/canvas.height, 0.1, 10);
-  const view = lookAt([cx,cy,cz], [0,0,0], [0,1,0]);
-  const mvp = multiply(proj, view);
-  
-  gl.viewport(0, 0, canvas.width, canvas.height);
-  gl.clearColor(0.05, 0.05, 0.1, 1);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  gl.enable(gl.DEPTH_TEST);
-  
-  if(buffers) {
-    gl.uniformMatrix4fv(u_mvp, false, mvp);
-    gl.uniform3f(u_lightDir, 0.3, 0.7, 0.6);
-    gl.uniform1f(u_steps, state.steps);
-    
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.pos);
-    gl.enableVertexAttribArray(attribs.a_pos);
-    gl.vertexAttribPointer(attribs.a_pos, 3, gl.FLOAT, false, 0, 0);
-    
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.norm);
-    gl.enableVertexAttribArray(attribs.a_norm);
-    gl.vertexAttribPointer(attribs.a_norm, 3, gl.FLOAT, false, 0, 0);
-    
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.bio);
-    gl.enableVertexAttribArray(attribs.a_biome);
-    gl.vertexAttribPointer(attribs.a_biome, 1, gl.FLOAT, false, 0, 0);
-    
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.idx);
-    gl.drawElements(gl.TRIANGLES, counts, gl.UNSIGNED_SHORT, 0);
+  document.getElementById('stats').innerHTML = `
+    Population: ${population}<br>
+    Generation: ${generation}<br>
+    Diversity: ${diversityPercent}%
+  `;
+}
+
+// Animation loop
+function animate(currentTime) {
+  if (currentTime - lastTime > 1000 / params.speed) {
+    updateWorld();
+    lastTime = currentTime;
   }
   
-  requestAnimationFrame(render);
+  render();
+  requestAnimationFrame(animate);
 }
 
-// ---------- Game State System ----------
-const gameStates = {
-  water: { title: "Depths Unknown", desc: "The pixel waters ripple with hidden currents. Ancient data flows beneath the surface, carrying whispers of what was lost in the digital abyss.", actions: ["Dive Deeper", "Surface", "Listen to Currents"] },
-  rock: { title: "Peak of Revelation", desc: "From these rocky heights, you see the pattern of the abyss spread below. Each pixel a star in a constellation of mysteries waiting to be decoded.", actions: ["Survey the Realm", "Descend", "Seek Higher Ground"] },
-  forest: { title: "Grove of Secrets", desc: "Pixel trees tower around you, their geometric branches holding fragments of forgotten code. The forest breathes with the rhythm of processing cycles.", actions: ["Read the Trees", "Follow the Path", "Rest Among Roots"] },
-  grass: { title: "Fields of Memory", desc: "Endless grasslands stretch before you, each blade a memory pixel storing echoes of what came before. The wind carries data fragments across the plains.", actions: ["Gather Memories", "Feel the Wind", "Lie in the Grass"] }
-};
-
-let currentState = null;
-let gameProgress = [];
-
-function updateGameState(biome, action = null) {
-  currentState = biome;
-  const state = gameStates[biome];
-  
-  document.querySelector('.state-title').textContent = state.title;
-  document.querySelector('.state-desc').textContent = state.desc;
-  
-  const actionsEl = document.querySelector('.actions');
-  actionsEl.innerHTML = '';
-  
-  state.actions.forEach(actionText => {
-    const btn = document.createElement('button');
-    btn.className = 'action-btn';
-    btn.textContent = actionText;
-    btn.onclick = () => performAction(biome, actionText);
-    actionsEl.appendChild(btn);
-  });
-  
-  if(action) {
-    gameProgress.push(`${biome}: ${action}`);
-    document.getElementById('progress').textContent = `Progress: ${gameProgress.length} actions taken in the abyss`;
-  }
-}
-
-function performAction(biome, action) {
-  updateGameState(biome, action);
-  
-  // Visual feedback - change camera view slightly
-  state.cam.yaw += 0.2;
-  state.cam.pitch += (Math.random() - 0.5) * 0.1;
-  state.cam.dist *= 0.95 + Math.random() * 0.1;
-}
-
-// Game action functions
-function exploreWater() { updateGameState('water', 'Descended to water'); }
-function climbRock() { updateGameState('rock', 'Climbed to rocky heights'); }
-function wanderForest() { updateGameState('forest', 'Wandered into trees'); }
-function seekGrass() { updateGameState('grass', 'Found grasslands'); }
-
-// ---------- UI Controls ----------
-document.getElementById('regen').onclick = () => {
-  state.seed = (Math.random()*1e9)>>>0;
-  buildMesh();
-};
-
+// Controls
+document.getElementById('reset').onclick = initWorld;
 document.getElementById('pause').onclick = () => {
-  state.paused = !state.paused;
-  document.getElementById('pause').textContent = state.paused ? 'Resume' : 'Pause';
+  paused = !paused;
+  document.getElementById('pause').textContent = paused ? 'Resume' : 'Pause';
+};
+document.getElementById('seed').onclick = () => {
+  initWorld();
+  seedLife();
 };
 
-document.getElementById('reset').onclick = () => {
-  state.cam = {yaw:0.6, pitch:-0.5, dist:3.0};
-};
-
-['res','steps','water','rock','trees','rot'].forEach(id => {
+['speed', 'growth', 'death', 'mutation'].forEach(id => {
   document.getElementById(id).oninput = (e) => {
-    const val = parseFloat(e.target.value);
-    if(id === 'res') { state.res = val; buildMesh(); }
-    else if(id === 'steps') state.steps = val;
-    else if(id === 'water') { state.water = val; buildMesh(); }
-    else if(id === 'rock') { state.rock = val; buildMesh(); }
-    else if(id === 'trees') { state.trees = val; buildMesh(); }
-    else if(id === 'rot') state.rotSpeed = val;
+    params[id] = parseFloat(e.target.value);
   };
 });
 
-// Mouse controls
-let dragging = false, lastX, lastY;
-canvas.onmousedown = (e) => { dragging = true; lastX = e.clientX; lastY = e.clientY; };
-document.onmouseup = () => dragging = false;
-document.onmousemove = (e) => {
-  if(dragging) {
-    state.cam.yaw += (e.clientX - lastX) * 0.01;
-    state.cam.pitch += (e.clientY - lastY) * 0.01;
-    state.cam.pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, state.cam.pitch));
-    lastX = e.clientX; lastY = e.clientY;
-  }
-};
-canvas.onwheel = (e) => {
-  state.cam.dist *= 1 + e.deltaY * 0.001;
-  state.cam.dist = Math.max(1, Math.min(10, state.cam.dist));
-  e.preventDefault();
-};
-
-// Initialize
-buildMesh();
-requestAnimationFrame(render);
-updateGameState('grass'); // Start in grasslands
+// Initialize and start
+initWorld();
+animate(0);
 </script>
+
 </body>
 </html>
