@@ -1,421 +1,339 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ABYSS — Living Pixel Biome 2D</title>
-<style>
-body{margin:0;background:#111;color:#eee;font:14px/1.4 monospace;overflow:hidden}
-.wrap{height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px;box-sizing:border-box}
-h1{margin:0 0 20px;text-align:center;font-size:24px}
-.row{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;justify-content:center}
-.panel{background:#222;border:1px solid #555;border-radius:8px;padding:20px}
-canvas{display:block;border:2px solid #666;image-rendering:pixelated;image-rendering:-moz-crisp-edges;image-rendering:crisp-edges}
-.btn{background:#333;border:1px solid #666;color:#eee;padding:8px 16px;border-radius:4px;cursor:pointer;font:inherit}
-.btn:hover{background:#444;border-color:#888}
-.controls{display:flex;flex-direction:column;gap:10px;margin-top:10px}
-label{display:flex;flex-direction:column;gap:4px;font-size:12px}
-input[type=range]{width:200px}
-.biome-info{background:#333;padding:10px;border-radius:4px;margin-top:10px;font-size:11px}
-.stats{margin-top:10px;font-size:11px;color:#999}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+  <title>Pixel Biome — 2D + Little Wanderer</title>
+  <style>
+    :root{ --bg:#0e0d11; --ink:#e7eaff; --panel:#1a1822; --border:#4e456a; }
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:ui-monospace,Menlo,Consolas,monospace}
+    .wrap{max-width:1080px;margin:0 auto;padding:16px}
+    h1{font-size:20px;margin:8px 0}
+    .row{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px}
+    canvas{display:block;border-radius:12px;border:1px solid var(--border);image-rendering:pixelated;image-rendering:crisp-edges}
+    .btn{cursor:pointer;background:#22253c;border:1px solid #5e64a8;color:#e7eaff;padding:6px 10px;border-radius:9px}
+    .grid{display:grid;grid-template-columns:repeat(2, minmax(220px,1fr));gap:10px}
+    label{display:flex;flex-direction:column;gap:4px;font-size:12px}
+    select, input[type=range]{width:100%}
+    .note{font-size:12px;opacity:.85}
+  </style>
 </head>
 <body>
-
 <div class="wrap">
-  <h1>ABYSS — <span style="opacity:.8">Living Pixel Biome</span></h1>
+  <h1>Pixel Biome — <span style="opacity:.8">2D diorama + little wanderer</span></h1>
   <div class="row">
     <div class="panel">
-      <canvas id="canvas" width="200" height="200" style="width:400px;height:400px;"></canvas>
+      <canvas id="view" width="240" height="240" style="width:min(88vw,560px);height:min(88vw,560px)"></canvas>
     </div>
-    <div class="panel" style="min-width:260px;max-width:340px">
+    <div class="panel" style="min-width:320px;max-width:520px">
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-        <button class="btn" id="reset">Reset Biome</button>
-        <button class="btn" id="pause">Pause</button>
-        <button class="btn" id="seed">Random Seed</button>
+        <button class="btn" id="regen">Regenerate (R)</button>
+        <button class="btn" id="pause">Pause (P)</button>
+        <button class="btn" id="seed">New Seed</button>
+        <button class="btn" id="export">Export PNG</button>
       </div>
-      
-      <div class="controls">
-        <label>Life Speed
-          <input id="speed" type="range" min="1" max="10" value="3">
+      <div class="grid">
+        <label>World Size<input id="size" type="range" min="40" max="160" step="20" value="100"></label>
+        <label>Palette Steps<input id="steps" type="range" min="2" max="8" value="4"></label>
+        <label>Palette Theme
+          <select id="theme">
+            <option value="forest">Forest</option>
+            <option value="autumn">Autumn</option>
+            <option value="desert">Desert</option>
+            <option value="swamp">Swamp</option>
+            <option value="nocturne">Nocturne</option>
+          </select>
         </label>
-        <label>Growth Rate
-          <input id="growth" type="range" min="0.1" max="2" step="0.1" value="0.8">
-        </label>
-        <label>Death Rate  
-          <input id="death" type="range" min="0.01" max="0.1" step="0.01" value="0.03">
-        </label>
-        <label>Mutation Rate
-          <input id="mutation" type="range" min="0" max="0.2" step="0.01" value="0.05">
-        </label>
+        <label>Water Level<input id="water" type="range" min="0.15" max="0.5" step="0.01" value="0.30"></label>
+        <label>Rock Height<input id="rock" type="range" min="0.6" max="0.9" step="0.01" value="0.78"></label>
+        <label>Tree Moisture<input id="trees" type="range" min="0.45" max="0.85" step="0.01" value="0.62"></label>
+        <label>Wind Speed<input id="wind" type="range" min="0" max="2.0" step="0.01" value="0.8"></label>
+        <label>Shadow Strength<input id="shadow" type="range" min="0" max="0.6" step="0.02" value="0.35"></label>
+        <label>Day/Night Enabled<input id="todOn" type="checkbox" checked></label>
+        <label>Day/Night Speed<input id="todSpeed" type="range" min="0" max="0.1" step="0.005" value="0.02"></label>
+        <label>Altitude Influence<input id="altInfluence" type="range" min="0" max="0.6" step="0.02" value="0.25"></label>
+        <label>Contours<input id="contours" type="checkbox" checked></label>
+        <label>Contour Step<input id="contourStep" type="range" min="0.05" max="0.3" step="0.01" value="0.1"></label>
+        <!-- Player controls -->
+        <label>Player Enabled<input id="pcOn" type="checkbox" checked></label>
+        <label>Player Speed<input id="pcSpeed" type="range" min="0.5" max="6" step="0.1" value="2.2"></label>
+        <label>Auto Wander<input id="pcWander" type="checkbox"></label>
       </div>
-
-      <div class="biome-info">
-        <strong>Living Pixel Biome</strong><br>
-        Each pixel is a living organism that can grow, reproduce, mutate, and die. 
-        Different colors represent different biome types with unique behaviors.
-        <br><br>
-        🔵 Water - Flows and spreads<br>
-        🟢 Grass - Grows and spreads slowly<br>
-        🟤 Trees - Grow tall, live longer<br>
-        ⚪ Rock - Stable, changes slowly<br>
-      </div>
-
-      <div class="stats" id="stats">
-        Population: 0<br>
-        Generation: 0<br>
-        Diversity: 0%
-      </div>
+      <p class="note">Controls: <b>WASD / Arrow Keys</b> move the little wanderer. <b>R</b> regenerate • <b>P</b> pause. Hard 1‑px shadows; day/night cycle and altitude shading are on by default.</p>
     </div>
   </div>
 </div>
-
 <script>
-// Living Pixel Biome System
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-const width = canvas.width;
-const height = canvas.height;
-
-// Biome types
-const BIOMES = {
-  EMPTY: 0,
-  WATER: 1,
-  GRASS: 2, 
-  TREE: 3,
-  ROCK: 4
-};
-
-const BIOME_COLORS = {
-  [BIOMES.EMPTY]: [17, 17, 17],     // Dark background
-  [BIOMES.WATER]: [30, 90, 255],    // Blue water
-  [BIOMES.GRASS]: [90, 200, 105],   // Green grass
-  [BIOMES.TREE]: [45, 120, 70],     // Dark green trees
-  [BIOMES.ROCK]: [160, 155, 170]    // Gray rock
-};
-
-// Living pixel class
-class LivingPixel {
-  constructor(x, y, biome, age = 0) {
-    this.x = x;
-    this.y = y;
-    this.biome = biome;
-    this.age = age;
-    this.energy = Math.random() * 100 + 50;
-    this.maxAge = this.getMaxAge();
-    this.reproduced = false;
+(()=>{
+  // ---------- Utilities ----------
+  function mulberry32(a){return function(){let t=a+=0x6D2B79F5; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296;}}
+  function makeValueNoise(seed){
+    const rand = mulberry32(seed);
+    const grad = new Map();
+    function g(ix,iy){const k=(ix<<16)^iy; if(!grad.has(k)) grad.set(k, rand()); return grad.get(k)}
+    return (x,y)=>{const xi=Math.floor(x), yi=Math.floor(y); const xf=x-xi, yf=y-yi; const u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf); const v00=g(xi,yi), v10=g(xi+1,yi), v01=g(xi,yi+1), v11=g(xi+1,yi+1); return (v00*(1-u)+v10*u)*(1-v)+(v01*(1-u)+v11*u)*v;}
   }
+  function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+  function quantize(v,steps){return Math.floor(v*steps)/steps}
+  function hash2(x,y){ let h=x*374761393 + y*668265263; h=(h^(h>>>13))*1274126177; return (h^(h>>>16))>>>0; }
 
-  getMaxAge() {
-    switch(this.biome) {
-      case BIOMES.WATER: return 50 + Math.random() * 30;
-      case BIOMES.GRASS: return 80 + Math.random() * 40;
-      case BIOMES.TREE: return 150 + Math.random() * 100;
-      case BIOMES.ROCK: return 300 + Math.random() * 200;
-      default: return 1;
-    }
-  }
+  const canvas = document.getElementById('view');
+  const ctx = canvas.getContext('2d');
+  if(!ctx){ throw new Error('2D canvas context unavailable'); }
+  ctx.imageSmoothingEnabled=false;
 
-  update(world, params) {
-    this.age++;
-    
-    // Natural death
-    if (this.age > this.maxAge || this.energy <= 0) {
-      return null; // Dies
-    }
-
-    // Lose energy over time
-    this.energy -= params.death * 10;
-
-    // Biome-specific behaviors
-    switch(this.biome) {
-      case BIOMES.WATER:
-        return this.updateWater(world, params);
-      case BIOMES.GRASS:
-        return this.updateGrass(world, params);
-      case BIOMES.TREE:
-        return this.updateTree(world, params);
-      case BIOMES.ROCK:
-        return this.updateRock(world, params);
-    }
-    
-    return this;
-  }
-
-  updateWater(world, params) {
-    // Water flows to empty spaces
-    if (Math.random() < params.growth * 0.5) {
-      const neighbors = this.getEmptyNeighbors(world);
-      if (neighbors.length > 0) {
-        const target = neighbors[Math.floor(Math.random() * neighbors.length)];
-        return [this, new LivingPixel(target.x, target.y, BIOMES.WATER)];
-      }
-    }
-    return this;
-  }
-
-  updateGrass(world, params) {
-    // Grass grows and reproduces
-    if (this.energy > 70 && Math.random() < params.growth * 0.3) {
-      const neighbors = this.getEmptyNeighbors(world);
-      if (neighbors.length > 0) {
-        const target = neighbors[Math.floor(Math.random() * neighbors.length)];
-        this.energy -= 30;
-        let newBiome = BIOMES.GRASS;
-        
-        // Small chance to evolve into tree
-        if (Math.random() < params.mutation) {
-          newBiome = BIOMES.TREE;
-        }
-        
-        return [this, new LivingPixel(target.x, target.y, newBiome)];
-      }
-    }
-    return this;
-  }
-
-  updateTree(world, params) {
-    // Trees grow slowly but live long
-    if (this.energy > 80 && Math.random() < params.growth * 0.15) {
-      const neighbors = this.getEmptyNeighbors(world);
-      if (neighbors.length > 0) {
-        const target = neighbors[Math.floor(Math.random() * neighbors.length)];
-        this.energy -= 40;
-        
-        let newBiome = BIOMES.TREE;
-        // Trees can spawn grass around them
-        if (Math.random() < 0.6) {
-          newBiome = BIOMES.GRASS;
-        }
-        
-        return [this, new LivingPixel(target.x, target.y, newBiome)];
-      }
-    }
-    return this;
-  }
-
-  updateRock(world, params) {
-    // Rocks are stable but can slowly erode or grow
-    if (Math.random() < params.mutation * 0.1) {
-      const neighbors = this.getEmptyNeighbors(world);
-      if (neighbors.length > 0 && Math.random() < 0.1) {
-        const target = neighbors[Math.floor(Math.random() * neighbors.length)];
-        return [this, new LivingPixel(target.x, target.y, BIOMES.ROCK)];
-      }
-    }
-    return this;
-  }
-
-  getEmptyNeighbors(world) {
-    const neighbors = [];
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        if (dx === 0 && dy === 0) continue;
-        const nx = this.x + dx;
-        const ny = this.y + dy;
-        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-          if (!world[ny][nx] || world[ny][nx].biome === BIOMES.EMPTY) {
-            neighbors.push({x: nx, y: ny});
-          }
-        }
-      }
-    }
-    return neighbors;
-  }
-}
-
-// World state
-let world = [];
-let generation = 0;
-let paused = false;
-let lastTime = 0;
-
-// Parameters
-const params = {
-  speed: 3,
-  growth: 0.8,
-  death: 0.03,
-  mutation: 0.05
-};
-
-// Initialize world
-function initWorld() {
-  world = [];
-  for (let y = 0; y < height; y++) {
-    world[y] = [];
-    for (let x = 0; x < width; x++) {
-      world[y][x] = null;
-    }
-  }
-  
-  // Seed initial life
-  seedLife();
-  generation = 0;
-}
-
-function seedLife() {
-  // Add some initial pixels of each type
-  const centerX = Math.floor(width / 2);
-  const centerY = Math.floor(height / 2);
-  
-  // Central water source
-  for (let i = 0; i < 20; i++) {
-    const x = centerX + (Math.random() - 0.5) * 20;
-    const y = centerY + (Math.random() - 0.5) * 20;
-    if (x >= 0 && x < width && y >= 0 && y < height) {
-      world[Math.floor(y)][Math.floor(x)] = new LivingPixel(Math.floor(x), Math.floor(y), BIOMES.WATER);
-    }
-  }
-  
-  // Scattered grass
-  for (let i = 0; i < 30; i++) {
-    const x = Math.floor(Math.random() * width);
-    const y = Math.floor(Math.random() * height);
-    if (!world[y][x]) {
-      world[y][x] = new LivingPixel(x, y, BIOMES.GRASS);
-    }
-  }
-  
-  // Some trees
-  for (let i = 0; i < 10; i++) {
-    const x = Math.floor(Math.random() * width);
-    const y = Math.floor(Math.random() * height);
-    if (!world[y][x]) {
-      world[y][x] = new LivingPixel(x, y, BIOMES.TREE);
-    }
-  }
-  
-  // Few rocks
-  for (let i = 0; i < 15; i++) {
-    const x = Math.floor(Math.random() * width);
-    const y = Math.floor(Math.random() * height);
-    if (!world[y][x]) {
-      world[y][x] = new LivingPixel(x, y, BIOMES.ROCK);
-    }
-  }
-}
-
-function updateWorld() {
-  if (paused) return;
-  
-  const newWorld = [];
-  for (let y = 0; y < height; y++) {
-    newWorld[y] = [];
-    for (let x = 0; x < width; x++) {
-      newWorld[y][x] = null;
-    }
-  }
-  
-  // Update all living pixels
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const pixel = world[y][x];
-      if (pixel) {
-        const result = pixel.update(world, params);
-        
-        if (Array.isArray(result)) {
-          // Pixel reproduced
-          const [parent, child] = result;
-          newWorld[parent.y][parent.x] = parent;
-          if (!newWorld[child.y][child.x]) {
-            newWorld[child.y][child.x] = child;
-          }
-        } else if (result) {
-          // Pixel survived
-          newWorld[y][x] = result;
-        }
-        // If result is null, pixel died
-      }
-    }
-  }
-  
-  world = newWorld;
-  generation++;
-}
-
-function render() {
-  // Clear canvas
-  ctx.fillStyle = '#111111';
-  ctx.fillRect(0, 0, width, height);
-  
-  // Draw pixels
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const pixel = world[y][x];
-      if (pixel) {
-        const color = BIOME_COLORS[pixel.biome];
-        
-        // Add age-based variation
-        const ageFactor = Math.min(pixel.age / pixel.maxAge, 1);
-        const r = Math.floor(color[0] * (1 - ageFactor * 0.3));
-        const g = Math.floor(color[1] * (1 - ageFactor * 0.3));
-        const b = Math.floor(color[2] * (1 - ageFactor * 0.3));
-        
-        ctx.fillStyle = `rgb(${r},${g},${b})`;
-        ctx.fillRect(x, y, 1, 1);
-      }
-    }
-  }
-  
-  // Update stats
-  updateStats();
-}
-
-function updateStats() {
-  let population = 0;
-  const biomeCounts = {};
-  
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const pixel = world[y][x];
-      if (pixel) {
-        population++;
-        biomeCounts[pixel.biome] = (biomeCounts[pixel.biome] || 0) + 1;
-      }
-    }
-  }
-  
-  const diversity = Object.keys(biomeCounts).length;
-  const diversityPercent = Math.round((diversity / 4) * 100);
-  
-  document.getElementById('stats').innerHTML = `
-    Population: ${population}<br>
-    Generation: ${generation}<br>
-    Diversity: ${diversityPercent}%
-  `;
-}
-
-// Animation loop
-function animate(currentTime) {
-  if (currentTime - lastTime > 1000 / params.speed) {
-    updateWorld();
-    lastTime = currentTime;
-  }
-  
-  render();
-  requestAnimationFrame(animate);
-}
-
-// Controls
-document.getElementById('reset').onclick = initWorld;
-document.getElementById('pause').onclick = () => {
-  paused = !paused;
-  document.getElementById('pause').textContent = paused ? 'Resume' : 'Pause';
-};
-document.getElementById('seed').onclick = () => {
-  initWorld();
-  seedLife();
-};
-
-['speed', 'growth', 'death', 'mutation'].forEach(id => {
-  document.getElementById(id).oninput = (e) => {
-    params[id] = parseFloat(e.target.value);
+  // ---------- Themes ----------
+  const THEMES = {
+    forest:  { water:[0x1e,0x5b,0xff], grass:[0x58,0xc7,0x69], tree:[0x2f,0x7b,0x45], rock:[0xa0,0x9a,0xa7], sky:[20,18,28] },
+    autumn:  { water:[0x1e,0x5b,0xff], grass:[0xd1,0x78,0x3a], tree:[0x83,0x3a,0x1f], rock:[0xa0,0x9a,0xa7], sky:[26,20,20] },
+    desert:  { water:[0x3a,0x8f,0xff], grass:[0xe2,0xc8,0x7a], tree:[0xb2,0x8a,0x3b], rock:[0xb7,0xa6,0x88], sky:[30,24,18] },
+    swamp:   { water:[0x12,0x3a,0x3a], grass:[0x3a,0x6b,0x49], tree:[0x1e,0x49,0x2a], rock:[0x8a,0x86,0x94], sky:[16,22,20] },
+    nocturne:{ water:[0x14,0x2a,0x7a], grass:[0x2c,0x52,0x7a], tree:[0x19,0x3a,0x58], rock:[0x7a,0x78,0x88], sky:[8,10,18] },
   };
-});
 
-// Initialize and start
-initWorld();
-animate(0);
+  // ---------- State ----------
+  const state={
+    seed:(Math.random()*1e9)>>>0,
+    size:100, steps:4,
+    water:0.30, rock:0.78, trees:0.62,
+    wind:0.8, shadow:0.35,
+    theme:'forest',
+    time:0, paused:false,
+    heights:null,
+    map:null, light:null, tilePx:2,
+    todSpeed: 0.02,
+    todOn: true,
+    altInfluence: 0.25,
+    contours: true,
+    contourStep: 0.1,
+    // ---- player ----
+    pcOn: true,
+    pcSpeed: 2.2,
+    pcWander: false,
+    pcX: 0, pcY: 0, pcVX: 0, pcVY: 0, pcPhase: 0,
+    keys: new Set(),
+  };
+
+  const TILE={WATER:0, GRASS:1, TREE:2, ROCK:3};
+  function shade(rgb, l){ const s=quantize(clamp(l,0,1), state.steps); return `rgb(${(rgb[0]*s)|0}, ${(rgb[1]*s)|0}, ${(rgb[2]*s)|0})`; }
+
+  // ---------- Generation ----------
+  function regen(newSeed){ if(newSeed!==undefined) state.seed=newSeed>>>0;
+    const {size, water, rock, trees}=state;
+    const heightN=makeValueNoise(state.seed^0xA53);
+    const moistN=makeValueNoise(state.seed^0xBEE);
+    const lightN=makeValueNoise(state.seed^0xDAD);
+    state.map=new Uint8Array(size*size);
+    state.light=new Float32Array(size*size);
+    state.heights=new Float32Array(size*size);
+    const sH=0.05, sM=0.07, sL=0.03;
+    for(let y=0;y<size;y++){
+      for(let x=0;x<size;x++){
+        const i=y*size+x;
+        const h=heightN(x*sH,y*sH);
+        const m=moistN(x*sM,y*sM);
+        let id=TILE.GRASS;
+        if(h<water) id=TILE.WATER; else if(h>rock&&m<0.55) id=TILE.ROCK; else if(m>trees&&h>water+0.05&&h<rock) id=TILE.TREE;
+        state.map[i]=id;
+        state.heights[i]=h;
+        const l=lightN(x*sL+2.3,y*sL+1.7);
+        state.light[i]=0.55+0.45*l;
+      }
+    }
+    spawnPlayer();
+    drawStatic();
+  }
+
+  // ---------- Lighting Helpers ----------
+  function dayNightFactor(){
+    if(!state.todOn) return 1.0;
+    const phase = (state.time * state.todSpeed) % 1; // 0..1
+    const daylight = Math.sin(phase * Math.PI);      // 0 at midnight, 1 at noon
+    return 0.35 + 0.65*daylight; // 0.35..1.0
+  }
+  function altitudeFactor(h){
+    const a = clamp((h - state.water) / Math.max(0.0001, (state.rock - state.water)), 0, 1);
+    return 1.0 + (a - 0.5) * state.altInfluence * 2.0; // 1 +/- altInfluence
+  }
+
+  // ---------- Draw Static ----------
+  function drawStatic(){
+    const {size, tilePx}=state; const px=tilePx; const viewPx=size*px;
+    canvas.width=canvas.height=viewPx; ctx.imageSmoothingEnabled=false; ctx.clearRect(0,0,viewPx,viewPx);
+    const pal=THEMES[state.theme];
+    const day = dayNightFactor();
+    for(let y=0;y<size;y++){
+      for(let x=0;x<size;x++){
+        const i=y*size+x; const id=state.map[i];
+        const baseL=state.light[i] * day * altitudeFactor(state.heights[i]);
+        if(id===TILE.ROCK){ ctx.fillStyle=shade(pal.rock, baseL*0.9); ctx.fillRect(x*px,y*px,px,px); }
+        else if(id===TILE.TREE){ ctx.fillStyle=shade(pal.tree, baseL*0.9); ctx.fillRect(x*px,y*px,px,px); }
+        else if(id===TILE.GRASS){ ctx.fillStyle=shade(pal.grass, baseL*0.95); ctx.fillRect(x*px,y*px,px,px); }
+        else if(id===TILE.WATER){ ctx.fillStyle=shade(pal.water, baseL*0.85); ctx.fillRect(x*px,y*px,px,px); }
+      }
+    }
+    // 1‑px hard shadows cast to SE for trees/rocks
+    const sh=state.shadow * (0.6 + 0.4*day);
+    if(sh>0){
+      ctx.globalAlpha=sh; ctx.fillStyle='rgba(0,0,0,1)';
+      const s=state.size, px=state.tilePx;
+      for(let y=0;y<s;y++){
+        for(let x=0;x<s;x++){
+          const i=y*s+x; const id=state.map[i];
+          if(id===TILE.TREE||id===TILE.ROCK){
+            const nx=x+1, ny=y+1; if(nx<s&&ny<s){ const j=ny*s+nx; if(state.map[j]!==TILE.WATER){ ctx.fillRect(nx*px,ny*px,px,px);} }
+          }
+        }
+      }
+      ctx.globalAlpha=1;
+    }
+    // Contour lines for altitude perception
+    if(state.contours){
+      ctx.globalAlpha=0.12; ctx.fillStyle='#000';
+      const s=state.size, px=state.tilePx;
+      for(let y=0;y<s;y++){
+        for(let x=0;x<s;x++){
+          const h = clamp((state.heights[y*s+x]-state.water)/Math.max(0.0001,(state.rock-state.water)),0,1);
+          if((h % state.contourStep) < 0.02){ ctx.fillRect(x*px,y*px,px,px); }
+        }
+      }
+      ctx.globalAlpha=1;
+    }
+  }
+
+  // ---------- Draw Animated + Player ----------
+  function drawAnim(){
+    const {size, tilePx, wind}=state; const px=tilePx; const t=state.time; const pal=THEMES[state.theme];
+    const day = dayNightFactor();
+    const wf=0.15;
+    for(let y=0;y<size;y++){
+      for(let x=0;x<size;x++){
+        const i=y*size+x; const id=state.map[i]; const baseL=state.light[i] * day * altitudeFactor(state.heights[i]); const h=hash2(x,y);
+        if(id===TILE.GRASS){
+          const phase=((h&255)/255)*Math.PI*2; const sway=Math.sin(t*wind*0.7+(x+y)*wf+phase)*0.06 * (0.7 + 0.3*day);
+          ctx.fillStyle=shade(pal.grass, baseL*0.95+sway); ctx.fillRect(x*px,y*px,px,px);
+        } else if(id===TILE.TREE){
+          const j=(((h>>>8)&255)/255-0.5)*0.02; const tw=Math.sin(t*0.6+x*0.11+y*0.07)*0.03 * (0.7 + 0.3*day);
+          ctx.fillStyle=shade(pal.tree, baseL*0.9+j+tw); ctx.fillRect(x*px,y*px,px,px);
+        } else if(id===TILE.WATER){
+          const r=Math.sin((x*0.25+t*1.2))*0.06 + Math.cos((y*0.23 - t*0.9))*0.06; const nightBoost = (1-day)*0.5; const sp=((h&1023)===0)?(0.25+nightBoost)*Math.sin(t*8):0;
+          ctx.fillStyle=shade(pal.water, baseL*0.85+r+sp); ctx.fillRect(x*px,y*px,px,px);
+        }
+      }
+    }
+
+    // Night tint
+    if(state.todOn){
+      const pal=THEMES[state.theme]; const night = 1-day; if(night>0.02){ ctx.fillStyle = `rgba(${pal.sky[0]},${pal.sky[1]},${pal.sky[2]},${0.25*night})`; ctx.fillRect(0,0,canvas.width,canvas.height); }
+    }
+
+    if(state.pcOn) drawPlayer();
+  }
+
+  // ---------- Player ----------
+  function spawnPlayer(){
+    const s=state.size, cx=(s/2)|0, cy=(s/2)|0;
+    let r=0; while(r<s){
+      for(let dy=-r; dy<=r; dy++){
+        for(let dx=-r; dx<=r; dx++){
+          const x=cx+dx, y=cy+dy; if(x<0||y<0||x>=s||y>=s) continue;
+          const id=state.map[y*s+x]; if(id!==TILE.WATER){ state.pcX=x+0.5; state.pcY=y+0.5; return; }
+        }
+      }
+      r++;
+    }
+    state.pcX=cx+0.5; state.pcY=cy+0.5;
+  }
+  function isWalkable(x,y){ const s=state.size; const ix=Math.floor(x), iy=Math.floor(y); if(ix<0||iy<0||ix>=s||iy>=s) return false; return state.map[iy*s+ix]!==TILE.WATER; }
+  function updatePlayer(dt){
+    const keys=state.keys; let ax=0, ay=0;
+    if(keys.has('arrowleft')||keys.has('a')) ax-=1;
+    if(keys.has('arrowright')||keys.has('d')) ax+=1;
+    if(keys.has('arrowup')||keys.has('w')) ay-=1;
+    if(keys.has('arrowdown')||keys.has('s')) ay+=1;
+
+    if(ax!==0||ay!==0){ const l=Math.hypot(ax,ay)||1; ax/=l; ay/=l; state.pcVX=ax*state.pcSpeed; state.pcVY=ay*state.pcSpeed; }
+    else if(state.pcWander){
+      const n1=Math.sin(state.time*0.7), n2=Math.cos(state.time*0.53);
+      state.pcVX=n1*0.5*state.pcSpeed*0.5; state.pcVY=n2*0.5*state.pcSpeed*0.5;
+    } else { state.pcVX=state.pcVY=0; }
+
+    let nx=state.pcX + state.pcVX*dt, ny=state.pcY + state.pcVY*dt;
+    if(isWalkable(nx, state.pcY)) state.pcX=nx; else state.pcVX=0;
+    if(isWalkable(state.pcX, ny)) state.pcY=ny; else state.pcVY=0;
+    state.pcPhase += dt*6;
+  }
+  function drawPlayer(){
+    const px=state.tilePx; const bx = Math.floor(state.pcX*px), by=Math.floor(state.pcY*px);
+    const body=[240,238,180]; const bob=0.9+0.1*Math.sin(state.pcPhase);
+    const r=(body[0]*bob)|0, g=(body[1]*bob)|0, b=(body[2]*bob)|0;
+    ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fillRect(bx+1, by+1, px, px); // shadow
+    ctx.fillStyle=`rgb(${r},${g},${b})`; ctx.fillRect(bx, by, px, px);    // body
+  }
+
+  // ---------- Main Loop ----------
+  let last=performance.now();
+  function frame(now){
+    const dt=(now-last)/1000; last=now;
+    drawStatic();
+    if(!state.paused){ state.time+=dt; if(state.pcOn) updatePlayer(dt); }
+    drawAnim();
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- UI ----------
+  function applyUI(){
+    const gs = id=>document.getElementById(id);
+    state.size=+gs('size').value;
+    state.steps=+gs('steps').value;
+    state.theme=gs('theme').value;
+    state.water=+gs('water').value;
+    state.rock=+gs('rock').value;
+    state.trees=+gs('trees').value;
+    state.wind=+gs('wind').value;
+    state.shadow=+gs('shadow').value;
+    state.todSpeed=+gs('todSpeed').value;
+    state.todOn=gs('todOn').checked;
+    state.altInfluence=+gs('altInfluence').value;
+    state.contours=gs('contours').checked;
+    state.contourStep=+gs('contourStep').value;
+    state.pcOn=gs('pcOn').checked;
+    state.pcSpeed=+gs('pcSpeed').value;
+    state.pcWander=gs('pcWander').checked;
+  }
+  (function bindUI(){
+    const ids=['size','steps','theme','water','rock','trees','wind','shadow','todSpeed','todOn','altInfluence','contours','contourStep'];
+    ids.forEach(id=>{ const el=document.getElementById(id); if(!el) return; const evt=el.type==='checkbox'?'change':'input'; el.addEventListener(evt,()=>{ applyUI(); regen(); }); });
+    ['pcOn','pcSpeed','pcWander'].forEach(id=>{ const el=document.getElementById(id); if(!el) return; const evt=el.type==='checkbox'?'change':'input'; el.addEventListener(evt,()=>{ applyUI(); }); });
+    const regenBtn=document.getElementById('regen'); if(regenBtn) regenBtn.onclick=()=>{applyUI(); regen();};
+    const pauseBtn=document.getElementById('pause'); if(pauseBtn) pauseBtn.onclick=()=>{state.paused=!state.paused};
+    const seedBtn=document.getElementById('seed'); if(seedBtn) seedBtn.onclick=()=>{ state.seed=(Math.random()*1e9)>>>0; applyUI(); regen(); };
+    const exportBtn=document.getElementById('export'); if(exportBtn) exportBtn.onclick=()=>{ const a=document.createElement('a'); a.download=`biome_${state.seed}_${state.theme}.png`; a.href=canvas.toDataURL('image/png'); a.click(); };
+    // keyboard
+    window.addEventListener('keydown', (e)=>{
+      state.keys.add(e.key.toLowerCase());
+      if(e.key==='r' || e.key==='R'){ applyUI(); regen(); }
+      if(e.key==='p' || e.key==='P'){ state.paused=!state.paused; }
+    });
+    window.addEventListener('keyup', (e)=>{ state.keys.delete(e.key.toLowerCase()); });
+  })();
+
+  // ---------- Self-tests ----------
+  (function runSelfTests(){
+    try{
+      regen(state.seed);
+      console.assert(state.map && state.map.length===state.size*state.size, 'Map size mismatch');
+      const dn=dayNightFactor(); console.assert(dn>=0.35 && dn<=1.0, 'Day/Night factor out of range', dn);
+      const mid=(state.water+state.rock)/2; const af=altitudeFactor(mid); console.assert(Math.abs(af-1.0) < 0.61, 'Altitude influence baseline unexpected', af);
+    }catch(err){ console.error('Self-test error:', err); }
+  })();
+
+  // ---------- Init ----------
+  applyUI();
+  regen(state.seed);
+  requestAnimationFrame(frame);
+})();
 </script>
-
 </body>
 </html>
