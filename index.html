@@ -5,62 +5,148 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
   <title>Pixel Biome — 2D + Little Wanderer</title>
   <style>
-    :root{ --bg:#0e0d11; --ink:#e7eaff; --panel:#1a1822; --border:#4e456a; }
-    html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:ui-monospace,Menlo,Consolas,monospace}
-    .wrap{max-width:1080px;margin:0 auto;padding:16px}
-    h1{font-size:20px;margin:8px 0}
-    .row{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
-    .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px}
-    canvas{display:block;border-radius:12px;border:1px solid var(--border);image-rendering:pixelated;image-rendering:crisp-edges}
-    .btn{cursor:pointer;background:#22253c;border:1px solid #5e64a8;color:#e7eaff;padding:6px 10px;border-radius:9px}
-    .grid{display:grid;grid-template-columns:repeat(2, minmax(220px,1fr));gap:10px}
-    label{display:flex;flex-direction:column;gap:4px;font-size:12px}
-    select, input[type=range]{width:100%}
-    .note{font-size:12px;opacity:.85}
+    :root{ --bg:#0e0d11; --ink:#e7eaff; --panel:#1a1822; --border:#4e456a; --debug:#1a1b2e; }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+    
+    /* Fullscreen layout */
+    .container{position:relative;width:100vw;height:100vh;display:flex;flex-direction:column}
+    .canvas-container{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg)}
+    canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;cursor:crosshair;max-width:100vw;max-height:100vh}
+    
+    /* Header */
+    .header{position:absolute;top:0;left:0;right:0;z-index:100;padding:12px 16px;background:linear-gradient(to bottom, rgba(14,13,17,0.95), transparent);backdrop-filter:blur(4px)}
+    .title{font-size:18px;margin:0;text-align:center}
+    .title-sub{opacity:0.7;font-size:14px}
+    
+    /* Debug toggle button */
+    .debug-toggle{position:absolute;top:16px;right:16px;z-index:300;background:var(--debug);border:1px solid var(--border);color:var(--ink);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:12px;transition:all 0.2s ease}
+    .debug-toggle:hover{background:#252640;transform:scale(1.05)}
+    
+    /* Debug modal */
+    .debug-modal{position:fixed;top:0;right:0;width:min(380px,100vw);height:100vh;background:var(--debug);border-left:1px solid var(--border);transform:translateX(100%);transition:transform 0.3s ease;z-index:200;overflow-y:auto;scrollbar-width:thin}
+    .debug-modal.open{transform:translateX(0)}
+    .debug-modal::-webkit-scrollbar{width:6px}
+    .debug-modal::-webkit-scrollbar-track{background:var(--debug)}
+    .debug-modal::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+    
+    .debug-header{padding:16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+    .debug-title{font-size:14px;font-weight:bold;margin:0}
+    .debug-close{background:none;border:none;color:var(--ink);font-size:18px;cursor:pointer;padding:4px;border-radius:4px}
+    .debug-close:hover{background:var(--border)}
+    
+    .debug-content{padding:16px}
+    .debug-section{margin-bottom:24px}
+    .debug-section h3{font-size:12px;color:#8892b0;margin:0 0 12px 0;text-transform:uppercase;letter-spacing:0.5px}
+    
+    .btn{cursor:pointer;background:#22253c;border:1px solid #5e64a8;color:#e7eaff;padding:6px 10px;border-radius:6px;font-size:11px;margin:2px}
+    .btn:hover{background:#2a2d4a;transform:translateY(-1px)}
+    .btn-group{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
+    
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    label{display:flex;flex-direction:column;gap:6px;font-size:11px;line-height:1.3}
+    select, input[type=range]{width:100%;padding:4px}
+    input[type=checkbox]{margin-right:8px}
+    .note{font-size:10px;opacity:0.75;line-height:1.4;margin-top:12px}
+    
+    /* Mobile optimizations */
+    @media (max-width: 768px) {
+      .debug-modal{width:100vw}
+      .debug-toggle{top:12px;right:12px;padding:6px 10px;font-size:11px}
+      .header{padding:8px 12px}
+      .title{font-size:16px}
+      .title-sub{font-size:12px}
+      canvas{touch-action:none}
+    }
+    
+    /* Mobile landscape */
+    @media (max-width: 768px) and (orientation: landscape) {
+      .debug-modal{width:50vw;min-width:300px}
+    }
   </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Pixel Biome — <span style="opacity:.8">2D diorama + little wanderer</span></h1>
-  <div class="row">
-    <div class="panel">
-      <canvas id="view" width="240" height="240" style="width:min(88vw,560px);height:min(88vw,560px)"></canvas>
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <h1 class="title">ABYSS <span class="title-sub">Pixel Biome Explorer</span></h1>
+  </div>
+  
+  <!-- Debug Toggle Button -->
+  <button class="debug-toggle" id="debugToggle">⚙️ Debug</button>
+  
+  <!-- Canvas Container -->
+  <div class="canvas-container">
+    <canvas id="view" width="240" height="240"></canvas>
+  </div>
+  
+  <!-- Debug Modal -->
+  <div class="debug-modal" id="debugModal">
+    <div class="debug-header">
+      <h2 class="debug-title">Debug Controls</h2>
+      <button class="debug-close" id="debugClose">×</button>
     </div>
-    <div class="panel" style="min-width:320px;max-width:520px">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-        <button class="btn" id="regen">Regenerate (R)</button>
-        <button class="btn" id="pause">Pause (P)</button>
-        <button class="btn" id="seed">New Seed</button>
-        <button class="btn" id="export">Export PNG</button>
+    <div class="debug-content">
+      
+      <!-- Control Buttons -->
+      <div class="debug-section">
+        <h3>Actions</h3>
+        <div class="btn-group">
+          <button class="btn" id="regen">Regenerate (R)</button>
+          <button class="btn" id="pause">Pause (P)</button>
+          <button class="btn" id="seed">New Seed</button>
+          <button class="btn" id="export">Export PNG</button>
+        </div>
       </div>
-      <div class="grid">
-        <label>World Size<input id="size" type="range" min="40" max="160" step="20" value="100"></label>
-        <label>Palette Steps<input id="steps" type="range" min="2" max="8" value="4"></label>
-        <label>Palette Theme
-          <select id="theme">
-            <option value="forest">Forest</option>
-            <option value="autumn">Autumn</option>
-            <option value="desert">Desert</option>
-            <option value="swamp">Swamp</option>
-            <option value="nocturne">Nocturne</option>
-          </select>
-        </label>
-        <label>Water Level<input id="water" type="range" min="0.15" max="0.5" step="0.01" value="0.30"></label>
-        <label>Rock Height<input id="rock" type="range" min="0.6" max="0.9" step="0.01" value="0.78"></label>
-        <label>Tree Moisture<input id="trees" type="range" min="0.45" max="0.85" step="0.01" value="0.62"></label>
-        <label>Wind Speed<input id="wind" type="range" min="0" max="2.0" step="0.01" value="0.8"></label>
-        <label>Shadow Strength<input id="shadow" type="range" min="0" max="0.6" step="0.02" value="0.35"></label>
-        <label>Day/Night Enabled<input id="todOn" type="checkbox" checked></label>
-        <label>Day/Night Speed<input id="todSpeed" type="range" min="0" max="0.1" step="0.005" value="0.02"></label>
-        <label>Altitude Influence<input id="altInfluence" type="range" min="0" max="0.6" step="0.02" value="0.25"></label>
-        <label>Contours<input id="contours" type="checkbox" checked></label>
-        <label>Contour Step<input id="contourStep" type="range" min="0.05" max="0.3" step="0.01" value="0.1"></label>
-        <!-- Player controls -->
-        <label>Player Enabled<input id="pcOn" type="checkbox" checked></label>
-        <label>Player Speed<input id="pcSpeed" type="range" min="0.5" max="6" step="0.1" value="2.2"></label>
-        <label>Auto Wander<input id="pcWander" type="checkbox"></label>
+      
+      <!-- World Generation -->
+      <div class="debug-section">
+        <h3>World Generation</h3>
+        <div class="grid">
+          <label>World Size<input id="size" type="range" min="40" max="160" step="20" value="100"></label>
+          <label>Palette Steps<input id="steps" type="range" min="2" max="8" value="4"></label>
+          <label>Palette Theme
+            <select id="theme">
+              <option value="forest">Forest</option>
+              <option value="autumn">Autumn</option>
+              <option value="desert">Desert</option>
+              <option value="swamp">Swamp</option>
+              <option value="nocturne">Nocturne</option>
+            </select>
+          </label>
+          <label>Water Level<input id="water" type="range" min="0.15" max="0.5" step="0.01" value="0.30"></label>
+          <label>Rock Height<input id="rock" type="range" min="0.6" max="0.9" step="0.01" value="0.78"></label>
+          <label>Tree Moisture<input id="trees" type="range" min="0.45" max="0.85" step="0.01" value="0.62"></label>
+        </div>
       </div>
-      <p class="note">Controls: <b>WASD / Arrow Keys</b> move the little wanderer. <b>R</b> regenerate • <b>P</b> pause. Hard 1‑px shadows; day/night cycle and altitude shading are on by default.</p>
+      
+      <!-- Visual Effects -->
+      <div class="debug-section">
+        <h3>Visual Effects</h3>
+        <div class="grid">
+          <label>Wind Speed<input id="wind" type="range" min="0" max="2.0" step="0.01" value="0.8"></label>
+          <label>Shadow Strength<input id="shadow" type="range" min="0" max="0.6" step="0.02" value="0.35"></label>
+          <label>Day/Night Enabled<input id="todOn" type="checkbox" checked></label>
+          <label>Day/Night Speed<input id="todSpeed" type="range" min="0" max="0.1" step="0.005" value="0.02"></label>
+          <label>Altitude Influence<input id="altInfluence" type="range" min="0" max="0.6" step="0.02" value="0.25"></label>
+          <label>Contours<input id="contours" type="checkbox" checked></label>
+          <label>Contour Step<input id="contourStep" type="range" min="0.05" max="0.3" step="0.01" value="0.1"></label>
+        </div>
+      </div>
+      
+      <!-- Player Controls -->
+      <div class="debug-section">
+        <h3>Player Controls</h3>
+        <div class="grid">
+          <label>Player Enabled<input id="pcOn" type="checkbox" checked></label>
+          <label>Player Speed<input id="pcSpeed" type="range" min="0.5" max="6" step="0.1" value="2.2"></label>
+          <label>Auto Wander<input id="pcWander" type="checkbox"></label>
+        </div>
+        <p class="note">
+          <strong>Desktop:</strong> WASD / Arrow Keys to move • R to regenerate • P to pause<br>
+          <strong>Mobile:</strong> Tap anywhere on the map to move the wanderer there
+        </p>
+      </div>
     </div>
   </div>
 </div>
@@ -112,7 +198,10 @@
     pcSpeed: 2.2,
     pcWander: false,
     pcX: 0, pcY: 0, pcVX: 0, pcVY: 0, pcPhase: 0,
+    pcTargetX: null, pcTargetY: null, // click/touch target
     keys: new Set(),
+    // ---- UI ----
+    debugOpen: false,
   };
 
   const TILE={WATER:0, GRASS:1, TREE:2, ROCK:3};
@@ -159,8 +248,23 @@
 
   // ---------- Draw Static ----------
   function drawStatic(){
-    const {size, tilePx}=state; const px=tilePx; const viewPx=size*px;
-    canvas.width=canvas.height=viewPx; ctx.imageSmoothingEnabled=false; ctx.clearRect(0,0,viewPx,viewPx);
+    const {size, tilePx}=state; const px=tilePx;
+    
+    // Calculate canvas size to fit screen while maintaining aspect ratio
+    const container = canvas.parentElement;
+    const containerW = container.clientWidth;
+    const containerH = container.clientHeight;
+    const aspectRatio = 1; // square canvas
+    
+    let canvasSize = Math.min(containerW, containerH) * 0.95;
+    canvas.style.width = canvasSize + 'px';
+    canvas.style.height = canvasSize + 'px';
+    
+    const viewPx=size*px;
+    canvas.width=canvas.height=viewPx; 
+    ctx.imageSmoothingEnabled=false; 
+    ctx.clearRect(0,0,viewPx,viewPx);
+    
     const pal=THEMES[state.theme];
     const day = dayNightFactor();
     for(let y=0;y<size;y++){
@@ -248,16 +352,40 @@
   function isWalkable(x,y){ const s=state.size; const ix=Math.floor(x), iy=Math.floor(y); if(ix<0||iy<0||ix>=s||iy>=s) return false; return state.map[iy*s+ix]!==TILE.WATER; }
   function updatePlayer(dt){
     const keys=state.keys; let ax=0, ay=0;
+    
+    // Keyboard controls
     if(keys.has('arrowleft')||keys.has('a')) ax-=1;
     if(keys.has('arrowright')||keys.has('d')) ax+=1;
     if(keys.has('arrowup')||keys.has('w')) ay-=1;
     if(keys.has('arrowdown')||keys.has('s')) ay+=1;
 
-    if(ax!==0||ay!==0){ const l=Math.hypot(ax,ay)||1; ax/=l; ay/=l; state.pcVX=ax*state.pcSpeed; state.pcVY=ay*state.pcSpeed; }
-    else if(state.pcWander){
+    // Click/touch target movement
+    if(state.pcTargetX !== null && state.pcTargetY !== null && ax === 0 && ay === 0){
+      const dx = state.pcTargetX - state.pcX;
+      const dy = state.pcTargetY - state.pcY;
+      const dist = Math.hypot(dx, dy);
+      
+      if(dist > 0.3){ // not at target yet
+        ax = dx / dist;
+        ay = dy / dist;
+      } else {
+        // Reached target
+        state.pcTargetX = null;
+        state.pcTargetY = null;
+      }
+    }
+
+    if(ax!==0||ay!==0){ 
+      const l=Math.hypot(ax,ay)||1; 
+      ax/=l; ay/=l; 
+      state.pcVX=ax*state.pcSpeed; 
+      state.pcVY=ay*state.pcSpeed; 
+    } else if(state.pcWander){
       const n1=Math.sin(state.time*0.7), n2=Math.cos(state.time*0.53);
       state.pcVX=n1*0.5*state.pcSpeed*0.5; state.pcVY=n2*0.5*state.pcSpeed*0.5;
-    } else { state.pcVX=state.pcVY=0; }
+    } else { 
+      state.pcVX=state.pcVY=0; 
+    }
 
     let nx=state.pcX + state.pcVX*dt, ny=state.pcY + state.pcVY*dt;
     if(isWalkable(nx, state.pcY)) state.pcX=nx; else state.pcVX=0;
@@ -302,21 +430,125 @@
     state.pcSpeed=+gs('pcSpeed').value;
     state.pcWander=gs('pcWander').checked;
   }
+  
+  function toggleDebugModal(){
+    state.debugOpen = !state.debugOpen;
+    const modal = document.getElementById('debugModal');
+    const toggle = document.getElementById('debugToggle');
+    
+    if(state.debugOpen){
+      modal.classList.add('open');
+      toggle.textContent = '× Close';
+    } else {
+      modal.classList.remove('open');
+      toggle.textContent = '⚙️ Debug';
+    }
+  }
+  
+  function getCanvasCoordinates(event){
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    let clientX, clientY;
+    if(event.touches && event.touches[0]){
+      clientX = event.touches[0].clientX;
+      clientY = event.touches[0].clientY;
+    } else {
+      clientX = event.clientX;
+      clientY = event.clientY;
+    }
+    
+    const canvasX = (clientX - rect.left) * scaleX;
+    const canvasY = (clientY - rect.top) * scaleY;
+    
+    // Convert to world coordinates
+    const worldX = canvasX / state.tilePx;
+    const worldY = canvasY / state.tilePx;
+    
+    return {x: worldX, y: worldY};
+  }
+  
   (function bindUI(){
+    // Debug modal controls
+    document.getElementById('debugToggle').onclick = toggleDebugModal;
+    document.getElementById('debugClose').onclick = toggleDebugModal;
+    
+    // Canvas click/touch events
+    function handleCanvasClick(event){
+      event.preventDefault();
+      if(!state.pcOn) return;
+      
+      const coords = getCanvasCoordinates(event);
+      
+      // Check if the clicked position is walkable
+      if(isWalkable(coords.x, coords.y)){
+        state.pcTargetX = coords.x;
+        state.pcTargetY = coords.y;
+        // Disable auto wander when manually controlling
+        state.pcWander = false;
+        document.getElementById('pcWander').checked = false;
+      }
+    }
+    
+    canvas.addEventListener('click', handleCanvasClick);
+    canvas.addEventListener('touchstart', handleCanvasClick);
+    
+    // Prevent default touch behavior for canvas
+    canvas.addEventListener('touchmove', (e) => e.preventDefault());
+    canvas.addEventListener('touchend', (e) => e.preventDefault());
+    
+    // Settings controls
     const ids=['size','steps','theme','water','rock','trees','wind','shadow','todSpeed','todOn','altInfluence','contours','contourStep'];
-    ids.forEach(id=>{ const el=document.getElementById(id); if(!el) return; const evt=el.type==='checkbox'?'change':'input'; el.addEventListener(evt,()=>{ applyUI(); regen(); }); });
-    ['pcOn','pcSpeed','pcWander'].forEach(id=>{ const el=document.getElementById(id); if(!el) return; const evt=el.type==='checkbox'?'change':'input'; el.addEventListener(evt,()=>{ applyUI(); }); });
-    const regenBtn=document.getElementById('regen'); if(regenBtn) regenBtn.onclick=()=>{applyUI(); regen();};
-    const pauseBtn=document.getElementById('pause'); if(pauseBtn) pauseBtn.onclick=()=>{state.paused=!state.paused};
-    const seedBtn=document.getElementById('seed'); if(seedBtn) seedBtn.onclick=()=>{ state.seed=(Math.random()*1e9)>>>0; applyUI(); regen(); };
-    const exportBtn=document.getElementById('export'); if(exportBtn) exportBtn.onclick=()=>{ const a=document.createElement('a'); a.download=`biome_${state.seed}_${state.theme}.png`; a.href=canvas.toDataURL('image/png'); a.click(); };
+    ids.forEach(id=>{ 
+      const el=document.getElementById(id); 
+      if(!el) return; 
+      const evt=el.type==='checkbox'?'change':'input'; 
+      el.addEventListener(evt,()=>{ applyUI(); regen(); }); 
+    });
+    
+    ['pcOn','pcSpeed','pcWander'].forEach(id=>{ 
+      const el=document.getElementById(id); 
+      if(!el) return; 
+      const evt=el.type==='checkbox'?'change':'input'; 
+      el.addEventListener(evt,()=>{ applyUI(); }); 
+    });
+    
+    const regenBtn=document.getElementById('regen'); 
+    if(regenBtn) regenBtn.onclick=()=>{applyUI(); regen();};
+    
+    const pauseBtn=document.getElementById('pause'); 
+    if(pauseBtn) pauseBtn.onclick=()=>{state.paused=!state.paused};
+    
+    const seedBtn=document.getElementById('seed'); 
+    if(seedBtn) seedBtn.onclick=()=>{ state.seed=(Math.random()*1e9)>>>0; applyUI(); regen(); };
+    
+    const exportBtn=document.getElementById('export'); 
+    if(exportBtn) exportBtn.onclick=()=>{ 
+      const a=document.createElement('a'); 
+      a.download=`abyss_${state.seed}_${state.theme}.png`; 
+      a.href=canvas.toDataURL('image/png'); 
+      a.click(); 
+    };
+    
     // keyboard
     window.addEventListener('keydown', (e)=>{
       state.keys.add(e.key.toLowerCase());
       if(e.key==='r' || e.key==='R'){ applyUI(); regen(); }
       if(e.key==='p' || e.key==='P'){ state.paused=!state.paused; }
+      if(e.key==='Escape'){ 
+        if(state.debugOpen) toggleDebugModal(); 
+      }
     });
-    window.addEventListener('keyup', (e)=>{ state.keys.delete(e.key.toLowerCase()); });
+    
+    window.addEventListener('keyup', (e)=>{ 
+      state.keys.delete(e.key.toLowerCase()); 
+    });
+    
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      drawStatic();
+    });
   })();
 
   // ---------- Self-tests ----------
