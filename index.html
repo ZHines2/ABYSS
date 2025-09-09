@@ -70,6 +70,17 @@
   <!-- Header -->
   <div class="header">
     <h1 class="title">ABYSS <span class="title-sub">Pixel Biome Explorer</span></h1>
+    <div id="inventory" style="position:absolute;right:120px;top:50%;transform:translateY(-50%);font-size:12px;background:rgba(14,13,17,0.8);padding:8px 12px;border-radius:6px;border:1px solid var(--border)">
+      <div style="display:flex;gap:12px;margin-bottom:4px">
+        <span>💎 <span id="gemCount">0</span></span>
+        <span>🪙 <span id="coinCount">0</span></span>
+        <span>🔮 <span id="crystalCount">0</span></span>
+        <span>⚱️ <span id="artifactCount">0</span></span>
+      </div>
+      <div id="objective" style="font-size:10px;opacity:0.8;text-align:center">
+        Collect treasures to explore!
+      </div>
+    </div>
   </div>
   
   <!-- Debug Toggle Button -->
@@ -200,14 +211,81 @@
     pcX: 0, pcY: 0, pcVX: 0, pcVY: 0, pcPhase: 0,
     pcTargetX: null, pcTargetY: null, // click/touch target
     keys: new Set(),
+    // ---- adventure ----
+    items: new Map(), // x,y -> item type
+    landmarks: new Map(), // x,y -> landmark type
+    inventory: {gems: 0, coins: 0, artifacts: 0, crystals: 0},
+    objectives: {collectGems: 10, totalCollected: 0, landmarksFound: 0},
+    discovered: new Set(), // discovered coordinates as "x,y"
     // ---- UI ----
     debugOpen: false,
   };
 
   const TILE={WATER:0, GRASS:1, TREE:2, ROCK:3};
+  const ITEM={GEM:0, COIN:1, ARTIFACT:2, CRYSTAL:3};
+  const LANDMARK={RUINS:0, OBELISK:1, SHRINE:2};
   function shade(rgb, l){ const s=quantize(clamp(l,0,1), state.steps); return `rgb(${(rgb[0]*s)|0}, ${(rgb[1]*s)|0}, ${(rgb[2]*s)|0})`; }
 
   // ---------- Generation ----------
+  function generateItems(){
+    state.items.clear();
+    state.landmarks.clear();
+    // Reset inventory and objectives on new world
+    state.inventory = {gems: 0, coins: 0, artifacts: 0, crystals: 0};
+    state.objectives = {collectGems: 10, totalCollected: 0, landmarksFound: 0};
+    updateInventoryDisplay();
+    
+    const {size} = state;
+    const itemRand = mulberry32(state.seed ^ 0xFEED);
+    const landmarkRand = mulberry32(state.seed ^ 0xBEAD);
+    
+    // Generate landmarks first (rarer, need good placement)
+    for(let attempts = 0; attempts < size * 0.1; attempts++){
+      const x = Math.floor(landmarkRand() * size);
+      const y = Math.floor(landmarkRand() * size);
+      const i = y * size + x;
+      
+      // Place landmarks on high ground, away from water
+      if(state.map[i] === TILE.GRASS && state.heights[i] > 0.6){
+        const key = `${x},${y}`;
+        if(!state.landmarks.has(key)){
+          const rnd = landmarkRand();
+          let landmarkType;
+          if(rnd < 0.4) landmarkType = LANDMARK.RUINS;
+          else if(rnd < 0.7) landmarkType = LANDMARK.OBELISK;
+          else landmarkType = LANDMARK.SHRINE;
+          
+          state.landmarks.set(key, landmarkType);
+        }
+      }
+    }
+    
+    // Generate items on walkable tiles
+    for(let attempts = 0; attempts < size * 0.8; attempts++){
+      const x = Math.floor(itemRand() * size);
+      const y = Math.floor(itemRand() * size);
+      const i = y * size + x;
+      
+      // Only place items on grass or near trees (not water/rocks)
+      if(state.map[i] === TILE.GRASS || state.map[i] === TILE.TREE){
+        const key = `${x},${y}`;
+        if(!state.items.has(key) && !state.landmarks.has(key)){
+          // Determine item type based on location and randomness
+          const heightFactor = state.heights[i];
+          const rnd = itemRand();
+          
+          let itemType;
+          if(rnd < 0.4) itemType = ITEM.GEM;        // Common
+          else if(rnd < 0.7) itemType = ITEM.COIN;  // Common
+          else if(rnd < 0.9) itemType = ITEM.CRYSTAL; // Uncommon
+          else itemType = ITEM.ARTIFACT;            // Rare
+          
+          state.items.set(key, itemType);
+        }
+      }
+    }
+  }
+
   function regen(newSeed){ if(newSeed!==undefined) state.seed=newSeed>>>0;
     const {size, water, rock, trees}=state;
     const heightN=makeValueNoise(state.seed^0xA53);
@@ -230,6 +308,7 @@
         state.light[i]=0.55+0.45*l;
       }
     }
+    generateItems();
     spawnPlayer();
     drawStatic();
   }
@@ -332,6 +411,9 @@
       const pal=THEMES[state.theme]; const night = 1-day; if(night>0.02){ ctx.fillStyle = `rgba(${pal.sky[0]},${pal.sky[1]},${pal.sky[2]},${0.25*night})`; ctx.fillRect(0,0,canvas.width,canvas.height); }
     }
 
+    // Draw items
+    drawItems();
+    
     if(state.pcOn) drawPlayer();
   }
 
@@ -350,6 +432,137 @@
     state.pcX=cx+0.5; state.pcY=cy+0.5;
   }
   function isWalkable(x,y){ const s=state.size; const ix=Math.floor(x), iy=Math.floor(y); if(ix<0||iy<0||ix>=s||iy>=s) return false; return state.map[iy*s+ix]!==TILE.WATER; }
+  // ---------- Items & Collection ----------
+  function collectItem(x, y, itemType){
+    const itemNames = ['gems', 'coins', 'artifacts', 'crystals'];
+    const itemName = itemNames[itemType];
+    state.inventory[itemName]++;
+    state.objectives.totalCollected++;
+    updateInventoryDisplay();
+    
+    // Simple audio feedback simulation (visual flash)
+    const px = state.tilePx;
+    ctx.save();
+    ctx.globalAlpha = 0.8;
+    ctx.fillStyle = '#FFD700';
+    ctx.fillRect(x * px - 1, y * px - 1, px + 2, px + 2);
+    ctx.restore();
+  }
+
+  function discoverLandmark(x, y, landmarkType){
+    state.objectives.landmarksFound++;
+    updateInventoryDisplay();
+    
+    // Visual discovery effect
+    const px = state.tilePx;
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = '#00FF00';
+    ctx.fillRect(x * px - 2, y * px - 2, px + 4, px + 4);
+    ctx.restore();
+  }
+
+  function updateInventoryDisplay(){
+    document.getElementById('gemCount').textContent = state.inventory.gems;
+    document.getElementById('coinCount').textContent = state.inventory.coins;
+    document.getElementById('crystalCount').textContent = state.inventory.crystals;
+    document.getElementById('artifactCount').textContent = state.inventory.artifacts;
+    
+    // Update objective display
+    const totalItems = state.objectives.totalCollected;
+    const landmarks = state.objectives.landmarksFound;
+    const objectiveEl = document.getElementById('objective');
+    
+    if(totalItems === 0 && landmarks === 0){
+      objectiveEl.textContent = "Collect treasures & discover landmarks!";
+    } else if(landmarks > 0){
+      objectiveEl.textContent = `${totalItems} treasures, ${landmarks} landmark${landmarks > 1 ? 's' : ''} found! 🗺️`;
+    } else if(totalItems < 5){
+      objectiveEl.textContent = "Great start! Keep exploring...";
+    } else if(totalItems < 15){
+      objectiveEl.textContent = `${totalItems} treasures found! 🎉`;
+    } else {
+      objectiveEl.textContent = `Master explorer! ${totalItems} treasures! 🏆`;
+    }
+  }
+
+  function drawItems(){
+    const px = state.tilePx;
+    const t = state.time;
+    
+    // Draw collectible items
+    state.items.forEach((itemType, key) => {
+      const [x, y] = key.split(',').map(Number);
+      const screenX = x * px;
+      const screenY = y * px;
+      
+      // Sparkle animation
+      const sparkle = 0.8 + 0.2 * Math.sin(t * 4 + x + y);
+      ctx.globalAlpha = sparkle;
+      
+      // Different colors for different items
+      switch(itemType){
+        case ITEM.GEM:
+          ctx.fillStyle = '#FF69B4'; // Pink gem
+          break;
+        case ITEM.COIN:
+          ctx.fillStyle = '#FFD700'; // Gold coin
+          break;
+        case ITEM.CRYSTAL:
+          ctx.fillStyle = '#00CED1'; // Cyan crystal
+          break;
+        case ITEM.ARTIFACT:
+          ctx.fillStyle = '#9370DB'; // Purple artifact
+          break;
+      }
+      
+      ctx.fillRect(screenX, screenY, px, px);
+      ctx.globalAlpha = 1;
+    });
+    
+    // Draw landmarks
+    state.landmarks.forEach((landmarkType, key) => {
+      const [x, y] = key.split(',').map(Number);
+      const screenX = x * px;
+      const screenY = y * px;
+      const discovered = state.discovered.has(key);
+      
+      // Pulsing effect for undiscovered landmarks
+      let alpha = discovered ? 1.0 : 0.7 + 0.3 * Math.sin(t * 2 + x * 0.1 + y * 0.1);
+      ctx.globalAlpha = alpha;
+      
+      // Different colors/patterns for different landmarks
+      switch(landmarkType){
+        case LANDMARK.RUINS:
+          ctx.fillStyle = discovered ? '#8B4513' : '#654321'; // Brown ruins
+          ctx.fillRect(screenX, screenY, px, px);
+          if(discovered){
+            ctx.fillStyle = '#A0522D';
+            ctx.fillRect(screenX, screenY, 1, 1); // Highlight pixel
+          }
+          break;
+        case LANDMARK.OBELISK:
+          ctx.fillStyle = discovered ? '#2F4F4F' : '#1C3A3A'; // Dark slate obelisk
+          ctx.fillRect(screenX, screenY, px, px);
+          if(discovered){
+            ctx.fillStyle = '#708090';
+            ctx.fillRect(screenX, screenY, 1, 1); // Highlight pixel
+          }
+          break;
+        case LANDMARK.SHRINE:
+          ctx.fillStyle = discovered ? '#4B0082' : '#2E0051'; // Indigo shrine
+          ctx.fillRect(screenX, screenY, px, px);
+          if(discovered){
+            ctx.fillStyle = '#9370DB';
+            ctx.fillRect(screenX, screenY, 1, 1); // Highlight pixel
+          }
+          break;
+      }
+      
+      ctx.globalAlpha = 1;
+    });
+  }
+  
   function updatePlayer(dt){
     const keys=state.keys; let ax=0, ay=0;
     
@@ -390,6 +603,21 @@
     let nx=state.pcX + state.pcVX*dt, ny=state.pcY + state.pcVY*dt;
     if(isWalkable(nx, state.pcY)) state.pcX=nx; else state.pcVX=0;
     if(isWalkable(state.pcX, ny)) state.pcY=ny; else state.pcVY=0;
+    
+    // Check for item collection
+    const px = Math.floor(state.pcX), py = Math.floor(state.pcY);
+    const key = `${px},${py}`;
+    if(state.items.has(key)){
+      collectItem(px, py, state.items.get(key));
+      state.items.delete(key);
+    }
+    
+    // Check for landmark discovery
+    if(state.landmarks.has(key) && !state.discovered.has(key)){
+      discoverLandmark(px, py, state.landmarks.get(key));
+      state.discovered.add(key);
+    }
+    
     state.pcPhase += dt*6;
   }
   function drawPlayer(){
