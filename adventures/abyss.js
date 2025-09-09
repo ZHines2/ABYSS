@@ -93,6 +93,13 @@ const ABYSS_ADVENTURE = {
           if(!g.has("matches")) return "You need something to light it with.";
           if(g.flags.light) return "The candle already burns with a steady glow.";
           g.flags.light=true; g.unlockVerb("LIGHT"); g.note("Warm light spills outward.");
+          
+          // Play lighting sound effect
+          try {
+            const audio = document.getElementById('lightSound');
+            if(audio) { audio.currentTime = 0; audio.volume = 0.3; audio.play().catch(()=>{}); }
+          } catch(e) {}
+          
           return "You touch flame to wick; the room leans into relief.";
         }
       }
