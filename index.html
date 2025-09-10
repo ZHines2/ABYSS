@@ -425,12 +425,12 @@
     let featureType = null;
     let bonusXP = 0;
     
-    if(tileType === TILE.ROCK && height > 0.85){
+    if(tileType === TILE.ROCK && height > 0.80){
       featureType = 'peak';
       bonusXP = 5;
     } else if(tileType === TILE.WATER && isLargeWaterBody(x, y)){
       featureType = 'lake';
-      bonusXP = 3;
+      bonusXP = 4;
     } else if(tileType === TILE.TREE && isForestGrove(x, y)){
       featureType = 'grove';
       bonusXP = 3;
@@ -460,7 +460,7 @@
   }
   
   function isLargeWaterBody(x, y){
-    // Check if this water tile is part of a larger body (3x3 minimum)
+    // Check if this water tile is part of a larger body (2x2 minimum)
     let waterCount = 0;
     for(let dy = -1; dy <= 1; dy++){
       for(let dx = -1; dx <= 1; dx++){
@@ -471,7 +471,7 @@
         }
       }
     }
-    return waterCount >= 6;
+    return waterCount >= 4;
   }
   
   function isForestGrove(x, y){
@@ -486,7 +486,7 @@
         }
       }
     }
-    return treeCount >= 5;
+    return treeCount >= 4;
   }
   
   function isOpenMeadow(x, y){
