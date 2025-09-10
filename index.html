@@ -35,6 +35,20 @@
     .debug-close{background:none;border:none;color:var(--ink);font-size:18px;cursor:pointer;padding:4px;border-radius:4px}
     .debug-close:hover{background:var(--border)}
     
+    /* Status panel */
+    .status-panel{position:absolute;top:16px;left:16px;z-index:100;background:rgba(26,24,34,0.95);border:1px solid var(--border);border-radius:8px;padding:12px;backdrop-filter:blur(4px);min-width:180px;font-size:12px}
+    .status-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+    .wanderer-name{font-weight:bold;font-size:14px;color:var(--ink);cursor:pointer}
+    .wanderer-name:hover{color:#8892b0}
+    .rename-btn{background:none;border:none;color:#8892b0;cursor:pointer;padding:2px;border-radius:3px;font-size:10px}
+    .rename-btn:hover{background:var(--border);color:var(--ink)}
+    .status-info{margin-bottom:8px}
+    .status-item{display:flex;justify-content:space-between;margin-bottom:4px}
+    .status-label{color:#8892b0;font-size:11px}
+    .status-value{color:var(--ink);font-weight:bold}
+    .codex-btn{background:#22253c;border:1px solid #5e64a8;color:#e7eaff;padding:4px 8px;border-radius:4px;font-size:10px;cursor:pointer;width:100%}
+    .codex-btn:hover{background:#2a2d4a}
+    
     .debug-content{padding:16px}
     .debug-section{margin-bottom:24px}
     .debug-section h3{font-size:12px;color:#8892b0;margin:0 0 12px 0;text-transform:uppercase;letter-spacing:0.5px}
@@ -75,6 +89,29 @@
   
   <!-- Debug Toggle Button -->
   <button class="debug-toggle" id="debugToggle">⚙️ Debug</button>
+  
+  <!-- Status Panel -->
+  <div class="status-panel" id="statusPanel">
+    <div class="status-header">
+      <span class="wanderer-name" id="wandererName">Wanderer</span>
+      <button class="rename-btn" id="renameBtn" title="Click to rename">✎</button>
+    </div>
+    <div class="status-info">
+      <div class="status-item">
+        <span class="status-label">Position:</span>
+        <span class="status-value" id="position">0, 0</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">XP:</span>
+        <span class="status-value" id="xpValue">0</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Discoveries:</span>
+        <span class="status-value" id="discoveries">0</span>
+      </div>
+    </div>
+    <button class="codex-btn" id="codexBtn">View Codex</button>
+  </div>
   
   <!-- Canvas Container -->
   <div class="canvas-container">
@@ -206,6 +243,13 @@
     keys: new Set(),
     // ---- UI ----
     debugOpen: false,
+    // ---- ABYSS gameplay ----
+    wandererName: "Wanderer",
+    xp: 0,
+    sightRadius: 3,
+    visited: null, // BitArray for visited tiles
+    codex: new Map(), // Discovered features
+    totalDiscoveries: 0,
   };
 
   const TILE={WATER:0, GRASS:1, TREE:2, ROCK:3};
@@ -328,9 +372,166 @@
         state.light[i]=0.55+0.45*l;
       }
     }
+    // Initialize fog-of-war
+    state.visited = new Uint8Array(size*size);
+    state.xp = 0;
+    state.codex.clear();
+    state.totalDiscoveries = 0;
     spawnPlayer();
+    revealAroundPlayer(); // Reveal initial area
     state.staticDirty = true; // mark static layer as needing redraw
     updateSeedInURL(); // update URL with new seed
+    updateStatusPanel();
+  }
+
+  // ---------- ABYSS Gameplay Functions ----------
+  function revealAroundPlayer(){
+    const px = Math.floor(state.pcX), py = Math.floor(state.pcY);
+    const radius = state.sightRadius;
+    let newTilesRevealed = 0;
+    
+    for(let dy = -radius; dy <= radius; dy++){
+      for(let dx = -radius; dx <= radius; dx++){
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if(dist > radius) continue;
+        
+        const x = px + dx, y = py + dy;
+        if(x < 0 || y < 0 || x >= state.size || y >= state.size) continue;
+        
+        const i = y * state.size + x;
+        if(!state.visited[i]){
+          state.visited[i] = 1;
+          newTilesRevealed++;
+          
+          // Check for special features to add to codex
+          checkForMilestone(x, y);
+        }
+      }
+    }
+    
+    // Grant XP for newly revealed tiles
+    if(newTilesRevealed > 0){
+      state.xp += newTilesRevealed;
+      updateStatusPanel();
+    }
+  }
+  
+  function checkForMilestone(x, y){
+    const i = y * state.size + x;
+    const tileType = state.map[i];
+    const height = state.heights[i];
+    
+    // Define special features based on tile type and context
+    let featureType = null;
+    let bonusXP = 0;
+    
+    if(tileType === TILE.ROCK && height > 0.80){
+      featureType = 'peak';
+      bonusXP = 5;
+    } else if(tileType === TILE.WATER && isLargeWaterBody(x, y)){
+      featureType = 'lake';
+      bonusXP = 4;
+    } else if(tileType === TILE.TREE && isForestGrove(x, y)){
+      featureType = 'grove';
+      bonusXP = 3;
+    } else if(tileType === TILE.GRASS && isOpenMeadow(x, y)){
+      featureType = 'meadow';
+      bonusXP = 2;
+    }
+    
+    if(featureType){
+      const featureKey = `${featureType}_${x}_${y}`;
+      if(!state.codex.has(featureKey)){
+        const name = generateFeatureName(featureType, x, y);
+        state.codex.set(featureKey, {
+          name,
+          type: featureType,
+          x, y,
+          discovered: new Date().toISOString()
+        });
+        state.totalDiscoveries++;
+        state.xp += bonusXP;
+        
+        // Visual feedback for discovery
+        console.log(`Discovered: ${name} (${featureType}) at ${x}, ${y} - +${bonusXP} XP`);
+        updateStatusPanel();
+      }
+    }
+  }
+  
+  function isLargeWaterBody(x, y){
+    // Check if this water tile is part of a larger body (2x2 minimum)
+    let waterCount = 0;
+    for(let dy = -1; dy <= 1; dy++){
+      for(let dx = -1; dx <= 1; dx++){
+        const nx = x + dx, ny = y + dy;
+        if(nx >= 0 && ny >= 0 && nx < state.size && ny < state.size){
+          const ni = ny * state.size + nx;
+          if(state.map[ni] === TILE.WATER) waterCount++;
+        }
+      }
+    }
+    return waterCount >= 4;
+  }
+  
+  function isForestGrove(x, y){
+    // Check if this tree is part of a dense grove
+    let treeCount = 0;
+    for(let dy = -1; dy <= 1; dy++){
+      for(let dx = -1; dx <= 1; dx++){
+        const nx = x + dx, ny = y + dy;
+        if(nx >= 0 && ny >= 0 && nx < state.size && ny < state.size){
+          const ni = ny * state.size + nx;
+          if(state.map[ni] === TILE.TREE) treeCount++;
+        }
+      }
+    }
+    return treeCount >= 4;
+  }
+  
+  function isOpenMeadow(x, y){
+    // Check if this grass is part of an open meadow (no trees nearby)
+    for(let dy = -2; dy <= 2; dy++){
+      for(let dx = -2; dx <= 2; dx++){
+        const nx = x + dx, ny = y + dy;
+        if(nx >= 0 && ny >= 0 && nx < state.size && ny < state.size){
+          const ni = ny * state.size + nx;
+          if(state.map[ni] === TILE.TREE || state.map[ni] === TILE.ROCK) return false;
+        }
+      }
+    }
+    return true;
+  }
+  
+  function generateFeatureName(type, x, y){
+    // Deterministic name generation using seed, coordinates, and feature type
+    const rand = mulberry32(state.seed ^ (x * 17) ^ (y * 31) ^ (type.charCodeAt(0) * 13));
+    
+    const prefixes = {
+      peak: ['Soaring', 'Crowned', 'Ancient', 'Windswept', 'Solitary', 'Majestic'],
+      lake: ['Mirrored', 'Tranquil', 'Hidden', 'Crystal', 'Whispering', 'Sacred'],
+      grove: ['Shadowed', 'Singing', 'Twisted', 'Moonlit', 'Forgotten', 'Enchanted'],
+      meadow: ['Golden', 'Gentle', 'Endless', 'Peaceful', 'Verdant', 'Dreaming']
+    };
+    
+    const suffixes = {
+      peak: ['Summit', 'Spire', 'Crown', 'Peak', 'Pinnacle', 'Height'],
+      lake: ['Waters', 'Depths', 'Pool', 'Basin', 'Mere', 'Tarn'],
+      grove: ['Grove', 'Thicket', 'Copse', 'Woods', 'Stand', 'Hollow'],
+      meadow: ['Fields', 'Meadow', 'Expanse', 'Plains', 'Lea', 'Sward']
+    };
+    
+    const prefix = prefixes[type][Math.floor(rand() * prefixes[type].length)];
+    const suffix = suffixes[type][Math.floor(rand() * suffixes[type].length)];
+    
+    return `${prefix} ${suffix}`;
+  }
+  
+  function updateStatusPanel(){
+    document.getElementById('wandererName').textContent = state.wandererName;
+    document.getElementById('position').textContent = `${Math.floor(state.pcX)}, ${Math.floor(state.pcY)}`;
+    document.getElementById('xpValue').textContent = state.xp;
+    document.getElementById('discoveries').textContent = state.totalDiscoveries;
   }
 
   // ---------- Lighting Helpers ----------
@@ -405,6 +606,21 @@
       ctx.globalAlpha=1;
     }
     
+    // Fog-of-war overlay
+    if(state.visited){
+      ctx.globalAlpha=0.7; ctx.fillStyle='rgba(0,0,0,1)';
+      const s=state.size, px=state.tilePx;
+      for(let y=0;y<s;y++){
+        for(let x=0;x<s;x++){
+          const i=y*s+x;
+          if(!state.visited[i]){
+            ctx.fillRect(x*px,y*px,px,px);
+          }
+        }
+      }
+      ctx.globalAlpha=1;
+    }
+    
     state.staticDirty = false; // mark as clean after drawing
   }
 
@@ -455,6 +671,9 @@
   function updatePlayer(dt){
     const keys=state.keys; let ax=0, ay=0;
     
+    // Store previous position for fog-of-war updates
+    const prevX = Math.floor(state.pcX), prevY = Math.floor(state.pcY);
+    
     // Keyboard controls
     if(keys.has('arrowleft')||keys.has('a')) ax-=1;
     if(keys.has('arrowright')||keys.has('d')) ax+=1;
@@ -493,6 +712,14 @@
     if(isWalkable(nx, state.pcY)) state.pcX=nx; else state.pcVX=0;
     if(isWalkable(state.pcX, ny)) state.pcY=ny; else state.pcVY=0;
     state.pcPhase += dt*6;
+    
+    // Check if player moved to a new tile and update fog-of-war
+    const newX = Math.floor(state.pcX), newY = Math.floor(state.pcY);
+    if(newX !== prevX || newY !== prevY){
+      revealAroundPlayer();
+      updateStatusPanel();
+      state.staticDirty = true; // Trigger redraw for fog-of-war
+    }
   }
   function drawPlayer(){
     const px=state.tilePx; const bx = Math.floor(state.pcX*px), by=Math.floor(state.pcY*px);
@@ -697,6 +924,50 @@
     
     const exportBtn=document.getElementById('export'); 
     if(exportBtn) exportBtn.onclick=exportHighRes;
+    
+    // Status panel controls
+    const renameBtn=document.getElementById('renameBtn');
+    const wandererNameEl=document.getElementById('wandererName');
+    if(renameBtn && wandererNameEl){
+      renameBtn.onclick = ()=>{
+        const newName = prompt('Enter wanderer name:', state.wandererName);
+        if(newName && newName.trim()){
+          state.wandererName = newName.trim();
+          updateStatusPanel();
+        }
+      };
+      
+      wandererNameEl.onclick = ()=>{
+        const newName = prompt('Enter wanderer name:', state.wandererName);
+        if(newName && newName.trim()){
+          state.wandererName = newName.trim();
+          updateStatusPanel();
+        }
+      };
+    }
+    
+    const codexBtn=document.getElementById('codexBtn');
+    if(codexBtn){
+      codexBtn.onclick = ()=>{
+        if(state.codex.size === 0){
+          alert('No discoveries yet! Explore to find special features and landmarks.');
+          return;
+        }
+        
+        let codexText = `=== CODEX OF DISCOVERIES ===\n\n`;
+        const discoveries = Array.from(state.codex.values()).sort((a, b) => 
+          new Date(a.discovered) - new Date(b.discovered)
+        );
+        
+        discoveries.forEach((entry, i) => {
+          codexText += `${i + 1}. ${entry.name}\n`;
+          codexText += `   Type: ${entry.type}\n`;
+          codexText += `   Location: ${entry.x}, ${entry.y}\n\n`;
+        });
+        
+        alert(codexText);
+      };
+    }
     
     // keyboard
     window.addEventListener('keydown', (e)=>{
