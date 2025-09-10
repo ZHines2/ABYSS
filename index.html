@@ -44,7 +44,8 @@
     .btn-group{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
     
     .grid{display:grid;grid-template-columns:1fr;gap:12px}
-    label{display:flex;flex-direction:column;gap:6px;font-size:11px;line-height:1.3}
+    label{display:flex;flex-direction:column;gap:6px;font-size:11px;line-height:1.3;position:relative}
+    label span{position:absolute;top:20px;right:4px;background:var(--debug);padding:2px 6px;border-radius:3px;font-size:10px;color:#8892b0;pointer-events:none}
     select, input[type=range]{width:100%;padding:4px}
     input[type=checkbox]{margin-right:8px}
     .note{font-size:10px;opacity:0.75;line-height:1.4;margin-top:12px}
@@ -103,8 +104,8 @@
       <div class="debug-section">
         <h3>World Generation</h3>
         <div class="grid">
-          <label>World Size<input id="size" type="range" min="40" max="160" step="20" value="100"></label>
-          <label>Palette Steps<input id="steps" type="range" min="2" max="8" value="4"></label>
+          <label>World Size<input id="size" type="range" min="40" max="160" step="20" value="100"><span id="sizeValue">100</span></label>
+          <label>Palette Steps<input id="steps" type="range" min="2" max="8" value="4"><span id="stepsValue">4</span></label>
           <label>Palette Theme
             <select id="theme">
               <option value="forest">Forest</option>
@@ -114,9 +115,9 @@
               <option value="nocturne">Nocturne</option>
             </select>
           </label>
-          <label>Water Level<input id="water" type="range" min="0.15" max="0.5" step="0.01" value="0.30"></label>
-          <label>Rock Height<input id="rock" type="range" min="0.6" max="0.9" step="0.01" value="0.78"></label>
-          <label>Tree Moisture<input id="trees" type="range" min="0.45" max="0.85" step="0.01" value="0.62"></label>
+          <label>Water Level<input id="water" type="range" min="0.15" max="0.5" step="0.01" value="0.30"><span id="waterValue">0.30</span></label>
+          <label>Rock Height<input id="rock" type="range" min="0.6" max="0.9" step="0.01" value="0.78"><span id="rockValue">0.78</span></label>
+          <label>Tree Moisture<input id="trees" type="range" min="0.45" max="0.85" step="0.01" value="0.62"><span id="treesValue">0.62</span></label>
         </div>
       </div>
       
@@ -124,13 +125,13 @@
       <div class="debug-section">
         <h3>Visual Effects</h3>
         <div class="grid">
-          <label>Wind Speed<input id="wind" type="range" min="0" max="2.0" step="0.01" value="0.8"></label>
-          <label>Shadow Strength<input id="shadow" type="range" min="0" max="0.6" step="0.02" value="0.35"></label>
+          <label>Wind Speed<input id="wind" type="range" min="0" max="2.0" step="0.01" value="0.8"><span id="windValue">0.8</span></label>
+          <label>Shadow Strength<input id="shadow" type="range" min="0" max="0.6" step="0.02" value="0.35"><span id="shadowValue">0.35</span></label>
           <label>Day/Night Enabled<input id="todOn" type="checkbox" checked></label>
-          <label>Day/Night Speed<input id="todSpeed" type="range" min="0" max="0.1" step="0.005" value="0.02"></label>
-          <label>Altitude Influence<input id="altInfluence" type="range" min="0" max="0.6" step="0.02" value="0.25"></label>
+          <label>Day/Night Speed<input id="todSpeed" type="range" min="0" max="0.1" step="0.005" value="0.02"><span id="todSpeedValue">0.02</span></label>
+          <label>Altitude Influence<input id="altInfluence" type="range" min="0" max="0.6" step="0.02" value="0.25"><span id="altInfluenceValue">0.25</span></label>
           <label>Contours<input id="contours" type="checkbox" checked></label>
-          <label>Contour Step<input id="contourStep" type="range" min="0.05" max="0.3" step="0.01" value="0.1"></label>
+          <label>Contour Step<input id="contourStep" type="range" min="0.05" max="0.3" step="0.01" value="0.1"><span id="contourStepValue">0.1</span></label>
         </div>
       </div>
       
@@ -139,7 +140,7 @@
         <h3>Player Controls</h3>
         <div class="grid">
           <label>Player Enabled<input id="pcOn" type="checkbox" checked></label>
-          <label>Player Speed<input id="pcSpeed" type="range" min="0.5" max="6" step="0.1" value="2.2"></label>
+          <label>Player Speed<input id="pcSpeed" type="range" min="0.5" max="6" step="0.1" value="2.2"><span id="pcSpeedValue">2.2</span></label>
           <label>Auto Wander<input id="pcWander" type="checkbox"></label>
         </div>
         <p class="note">
@@ -190,9 +191,12 @@
     map:null, light:null, tilePx:2,
     todSpeed: 0.02,
     todOn: true,
+    todPhase: 0, // bounded phase to avoid floating point drift
     altInfluence: 0.25,
     contours: true,
     contourStep: 0.1,
+    // ---- rendering ----
+    staticDirty: true, // flag to control when static layer needs redrawing
     // ---- player ----
     pcOn: true,
     pcSpeed: 2.2,
@@ -206,6 +210,100 @@
 
   const TILE={WATER:0, GRASS:1, TREE:2, ROCK:3};
   function shade(rgb, l){ const s=quantize(clamp(l,0,1), state.steps); return `rgb(${(rgb[0]*s)|0}, ${(rgb[1]*s)|0}, ${(rgb[2]*s)|0})`; }
+
+  // ---------- URL Parameter Handling ----------
+  function parseSeedFromURL(){
+    const urlParams = new URLSearchParams(window.location.search);
+    const seedParam = urlParams.get('seed');
+    if(seedParam && !isNaN(parseInt(seedParam))){
+      return parseInt(seedParam) >>> 0; // ensure unsigned 32-bit int
+    }
+    return null;
+  }
+  
+  function updateSeedInURL(){
+    const url = new URL(window.location);
+    url.searchParams.set('seed', state.seed.toString());
+    window.history.replaceState({}, '', url);
+  }
+  
+  // ---------- Enhanced Export ----------
+  function exportHighRes(){
+    // Create a temporary high-resolution canvas (4x)
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    if(!tempCtx) return;
+    
+    const {size, tilePx}=state;
+    const hiResPx = tilePx * 4; // 4x resolution
+    const viewPx = size * hiResPx;
+    
+    tempCanvas.width = tempCanvas.height = viewPx;
+    tempCtx.imageSmoothingEnabled = false;
+    tempCtx.clearRect(0, 0, viewPx, viewPx);
+    
+    const pal = THEMES[state.theme];
+    const day = dayNightFactor();
+    
+    // Render static terrain at high resolution
+    for(let y=0;y<size;y++){
+      for(let x=0;x<size;x++){
+        const i=y*size+x; const id=state.map[i];
+        const baseL=state.light[i] * day * altitudeFactor(state.heights[i]);
+        if(id===TILE.ROCK){ tempCtx.fillStyle=shade(pal.rock, baseL*0.9); tempCtx.fillRect(x*hiResPx,y*hiResPx,hiResPx,hiResPx); }
+        else if(id===TILE.TREE){ tempCtx.fillStyle=shade(pal.tree, baseL*0.9); tempCtx.fillRect(x*hiResPx,y*hiResPx,hiResPx,hiResPx); }
+        else if(id===TILE.GRASS){ tempCtx.fillStyle=shade(pal.grass, baseL*0.95); tempCtx.fillRect(x*hiResPx,y*hiResPx,hiResPx,hiResPx); }
+        else if(id===TILE.WATER){ tempCtx.fillStyle=shade(pal.water, baseL*0.85); tempCtx.fillRect(x*hiResPx,y*hiResPx,hiResPx,hiResPx); }
+      }
+    }
+    
+    // Add shadows at high resolution
+    const sh=state.shadow * (0.6 + 0.4*day);
+    if(sh>0){
+      tempCtx.globalAlpha=sh; tempCtx.fillStyle='rgba(0,0,0,1)';
+      for(let y=0;y<size;y++){
+        for(let x=0;x<size;x++){
+          const i=y*size+x; const id=state.map[i];
+          if(id===TILE.TREE||id===TILE.ROCK){
+            const nx=x+1, ny=y+1; if(nx<size&&ny<size){ const j=ny*size+nx; if(state.map[j]!==TILE.WATER){ tempCtx.fillRect(nx*hiResPx,ny*hiResPx,hiResPx,hiResPx);} }
+          }
+        }
+      }
+      tempCtx.globalAlpha=1;
+    }
+    
+    // Add contours at high resolution
+    if(state.contours){
+      tempCtx.globalAlpha=0.12; tempCtx.fillStyle='#000';
+      for(let y=0;y<size;y++){
+        for(let x=0;x<size;x++){
+          const h = clamp((state.heights[y*size+x]-state.water)/Math.max(0.0001,(state.rock-state.water)),0,1);
+          if((h % state.contourStep) < 0.02){ tempCtx.fillRect(x*hiResPx,y*hiResPx,hiResPx,hiResPx); }
+        }
+      }
+      tempCtx.globalAlpha=1;
+    }
+    
+    // Add player at high resolution if enabled
+    if(state.pcOn){
+      const bx = Math.floor(state.pcX*hiResPx), by=Math.floor(state.pcY*hiResPx);
+      const body=[240,238,180]; const bob=0.9+0.1*Math.sin(state.pcPhase);
+      const r=(body[0]*bob)|0, g=(body[1]*bob)|0, b=(body[2]*bob)|0;
+      tempCtx.fillStyle='rgba(0,0,0,0.35)'; tempCtx.fillRect(bx+4, by+4, hiResPx, hiResPx); // shadow (4px offset at 4x)
+      tempCtx.fillStyle=`rgb(${r},${g},${b})`; tempCtx.fillRect(bx, by, hiResPx, hiResPx);    // body
+    }
+    
+    // Night tint at high resolution
+    if(state.todOn){
+      const night = 1-day; if(night>0.02){ tempCtx.fillStyle = `rgba(${pal.sky[0]},${pal.sky[1]},${pal.sky[2]},${0.25*night})`; tempCtx.fillRect(0,0,tempCanvas.width,tempCanvas.height); }
+    }
+    
+    // Download the high-resolution image
+    const a=document.createElement('a'); 
+    a.download=`abyss_${state.seed}_${state.theme}_4x.png`; 
+    a.href=tempCanvas.toDataURL('image/png'); 
+    a.click();
+  }
 
   // ---------- Generation ----------
   function regen(newSeed){ if(newSeed!==undefined) state.seed=newSeed>>>0;
@@ -231,14 +329,14 @@
       }
     }
     spawnPlayer();
-    drawStatic();
+    state.staticDirty = true; // mark static layer as needing redraw
+    updateSeedInURL(); // update URL with new seed
   }
 
   // ---------- Lighting Helpers ----------
   function dayNightFactor(){
     if(!state.todOn) return 1.0;
-    const phase = (state.time * state.todSpeed) % 1; // 0..1
-    const daylight = Math.sin(phase * Math.PI);      // 0 at midnight, 1 at noon
+    const daylight = Math.sin(state.todPhase * Math.PI);      // 0 at midnight, 1 at noon
     return 0.35 + 0.65*daylight; // 0.35..1.0
   }
   function altitudeFactor(h){
@@ -248,6 +346,8 @@
 
   // ---------- Draw Static ----------
   function drawStatic(){
+    if (!state.staticDirty) return; // only redraw when necessary
+    
     const {size, tilePx}=state; const px=tilePx;
     
     // Calculate canvas size to fit screen while maintaining aspect ratio
@@ -304,6 +404,8 @@
       }
       ctx.globalAlpha=1;
     }
+    
+    state.staticDirty = false; // mark as clean after drawing
   }
 
   // ---------- Draw Animated + Player ----------
@@ -403,14 +505,44 @@
   // ---------- Main Loop ----------
   let last=performance.now();
   function frame(now){
-    const dt=(now-last)/1000; last=now;
+    const rawDt=(now-last)/1000; 
+    const dt = Math.min(rawDt, 1/30); // clamp dt to avoid animation jumps after tab switches
+    last=now;
     drawStatic();
-    if(!state.paused){ state.time+=dt; if(state.pcOn) updatePlayer(dt); }
+    if(!state.paused){ 
+      state.time+=dt; 
+      // Update bounded todPhase to avoid floating point drift
+      if(state.todOn){
+        state.todPhase = (state.todPhase + dt * state.todSpeed) % 1;
+      }
+      if(state.pcOn) updatePlayer(dt); 
+    }
     drawAnim();
     requestAnimationFrame(frame);
   }
 
   // ---------- UI ----------
+  let regenDebounceTimer = null;
+  
+  function debounce(func, delay) {
+    return function(...args) {
+      clearTimeout(regenDebounceTimer);
+      regenDebounceTimer = setTimeout(() => func.apply(this, args), delay);
+    };
+  }
+  
+  const debouncedRegen = debounce(() => {
+    applyUI(); 
+    regen();
+  }, 300); // 300ms debounce delay
+  
+  function updateSliderValue(id, value) {
+    const valueSpan = document.getElementById(id + 'Value');
+    if (valueSpan) {
+      valueSpan.textContent = value;
+    }
+  }
+  
   function applyUI(){
     const gs = id=>document.getElementById(id);
     state.size=+gs('size').value;
@@ -429,6 +561,23 @@
     state.pcOn=gs('pcOn').checked;
     state.pcSpeed=+gs('pcSpeed').value;
     state.pcWander=gs('pcWander').checked;
+    
+    // Update value displays
+    updateSliderValue('size', state.size);
+    updateSliderValue('steps', state.steps);
+    updateSliderValue('water', state.water.toFixed(2));
+    updateSliderValue('rock', state.rock.toFixed(2));
+    updateSliderValue('trees', state.trees.toFixed(2));
+    updateSliderValue('wind', state.wind.toFixed(2));
+    updateSliderValue('shadow', state.shadow.toFixed(2));
+    updateSliderValue('todSpeed', state.todSpeed.toFixed(3));
+    updateSliderValue('altInfluence', state.altInfluence.toFixed(2));
+    updateSliderValue('contourStep', state.contourStep.toFixed(2));
+    updateSliderValue('pcSpeed', state.pcSpeed.toFixed(1));
+  }
+  
+  function markStaticDirty() {
+    state.staticDirty = true;
   }
   
   function toggleDebugModal(){
@@ -498,13 +647,32 @@
     canvas.addEventListener('touchmove', (e) => e.preventDefault());
     canvas.addEventListener('touchend', (e) => e.preventDefault());
     
-    // Settings controls
-    const ids=['size','steps','theme','water','rock','trees','wind','shadow','todSpeed','todOn','altInfluence','contours','contourStep'];
-    ids.forEach(id=>{ 
+    // Settings controls that affect world generation (debounced)
+    const regenIds=['size','steps','theme','water','rock','trees'];
+    regenIds.forEach(id=>{ 
       const el=document.getElementById(id); 
       if(!el) return; 
       const evt=el.type==='checkbox'?'change':'input'; 
-      el.addEventListener(evt,()=>{ applyUI(); regen(); }); 
+      el.addEventListener(evt,()=>{ 
+        applyUI(); // immediate value update
+        if(id === 'theme') {
+          markStaticDirty(); // theme changes need static redraw without full regen
+        } else {
+          debouncedRegen(); // debounced world regeneration
+        }
+      }); 
+    });
+    
+    // Settings controls that affect rendering (immediate)
+    const renderIds=['wind','shadow','todSpeed','todOn','altInfluence','contours','contourStep'];
+    renderIds.forEach(id=>{ 
+      const el=document.getElementById(id); 
+      if(!el) return; 
+      const evt=el.type==='checkbox'?'change':'input'; 
+      el.addEventListener(evt,()=>{ 
+        applyUI();
+        markStaticDirty(); // mark for redraw on next frame
+      }); 
     });
     
     ['pcOn','pcSpeed','pcWander'].forEach(id=>{ 
@@ -521,15 +689,14 @@
     if(pauseBtn) pauseBtn.onclick=()=>{state.paused=!state.paused};
     
     const seedBtn=document.getElementById('seed'); 
-    if(seedBtn) seedBtn.onclick=()=>{ state.seed=(Math.random()*1e9)>>>0; applyUI(); regen(); };
+    if(seedBtn) seedBtn.onclick=()=>{ 
+      state.seed=(Math.random()*1e9)>>>0; 
+      applyUI(); 
+      regen(); 
+    };
     
     const exportBtn=document.getElementById('export'); 
-    if(exportBtn) exportBtn.onclick=()=>{ 
-      const a=document.createElement('a'); 
-      a.download=`abyss_${state.seed}_${state.theme}.png`; 
-      a.href=canvas.toDataURL('image/png'); 
-      a.click(); 
-    };
+    if(exportBtn) exportBtn.onclick=exportHighRes;
     
     // keyboard
     window.addEventListener('keydown', (e)=>{
@@ -547,7 +714,7 @@
     
     // Handle window resize
     window.addEventListener('resize', () => {
-      drawStatic();
+      markStaticDirty();
     });
   })();
 
@@ -562,6 +729,12 @@
   })();
 
   // ---------- Init ----------
+  // Parse seed from URL if present
+  const urlSeed = parseSeedFromURL();
+  if(urlSeed !== null) {
+    state.seed = urlSeed;
+  }
+  
   applyUI();
   regen(state.seed);
   requestAnimationFrame(frame);
